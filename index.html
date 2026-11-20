@@ -183,6 +183,21 @@ pre.draft{white-space:pre-wrap;font-family:var(--body);background:var(--bg);bord
 .vote-details{font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--fg)}
 .ballot{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .ballot button:not(.link){min-width:96px;font-weight:600}
+.ov-vote{padding:12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.ov-vote:first-child{border-top:none;padding-top:0}
+.ov-vote .ballot button:not(.link){min-width:0;padding:5px 12px;font-size:13px}
+.row.clickable{cursor:pointer;border-radius:6px}
+.you-tag{font-weight:400;font-size:13px;color:var(--muted)}
+.ov-vote .meta,.mp-task .meta{font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;margin-top:4px}
+.mp-flag .meta{font-size:13px;color:var(--muted)}
+.row.clickable:hover .title,.row.clickable:focus-visible .title{color:var(--accent);text-decoration:underline}
+.mp-flag{background:var(--soon-soft);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:14px}
+.mp-flag h3{font-size:14px;margin:0 0 6px}
+.mp-task{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.mp-task select{font:inherit;font-size:13px;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+.mp-task .acts{display:flex;gap:6px;align-items:center}
+.vote.flash{outline:3px solid var(--accent);outline-offset:2px;transition:outline-color 1.5s}
+@media (max-width:520px){.mp-task{grid-template-columns:minmax(0,1fr)}}
 .ballot button.chosen{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
 .tally{display:flex;flex-direction:column;gap:6px}
 .trow{display:grid;grid-template-columns:minmax(70px,max-content) minmax(60px,1fr) 2ch minmax(0,1.2fr);gap:10px;align-items:center;font-size:13px}
@@ -485,6 +500,7 @@ function demoData(){
       {id:"t2",title:"Review draft 2027 operating budget",ownerId:"m2",status:"doing",due:addDays(t,5),category:"Finance",notes:"",created:addDays(t,-10),example:true},
       {id:"t3",title:"Circulate October council minutes",ownerId:"m3",status:"todo",due:addDays(t,2),category:"AGM / meetings",notes:"",created:addDays(t,-6),example:true},
       {id:"t4",title:"Fall gutter cleaning",ownerId:"m4",status:"done",due:addDays(t,-12),category:"Maintenance",notes:"Completed by contractor.",created:addDays(t,-40),example:true},
+      {id:"t6",title:"Book annual fire alarm and extinguisher inspection",ownerId:"pm",status:"doing",due:addDays(t,9),category:"Maintenance",notes:"PM booking with the usual fire safety contractor. Needs access to every unit.",created:addDays(t,-8),example:true},
       {id:"t5",title:"Update pet bylaw wording for AGM",ownerId:"",status:"todo",due:addDays(t,21),category:"Bylaws",notes:"",created:addDays(t,-2),example:true},
     ],
     contacts:[
@@ -674,6 +690,7 @@ function render(){
   if(S.mode === "loading"){ return; }
   const html = v==="tasks" ? viewTasks() : v==="pm" ? viewPM() : v==="votes" ? viewVotes() : v==="contractors" ? viewContractors() : v==="members" ? viewMembers() : viewOverview();
   $("#view").innerHTML = html;
+  if(mpOpen && $("#mpBody")) $("#mpBody").innerHTML = memberPanelBody(mpOpen);
   const f = $("#view [data-filter-root]"); if(f) restoreFilters();
   renderBell(); renderComments();
 }
@@ -694,8 +711,8 @@ function viewOverview(){
     ...lateFU.map(c=>({k:"fu",r:c,d:c.followUpDate})), ...lateT.map(t=>({k:"t",r:t,d:t.due})),
     ...soonFU.map(c=>({k:"fu",r:c,d:c.followUpDate})), ...soonT.map(t=>({k:"t",r:t,d:t.due})),
   ].sort((a,b)=>a.d.localeCompare(b.d));
-  const vw = votesAwaitingMe().map(v => `<div class="row"><div><div class="title">${esc(v.title)}</div><div class="meta"><span class="pill soon">Your vote needed</span><span>Vote · closes <span class="date">${fmt(new Date(v.closesAtIso).toLocaleDateString("en-CA"))}</span></span><span>${voteBallots(v).length} of ${activeMembers().length} voted</span></div></div><div class="acts"><a class="btn small" href="#votes">Vote</a></div></div>`).join("");
-  const attention = (items.length || vw) ? vw + items.map(i => i.k==="fu" ? contactRow(i.r,true) : taskRow(i.r)).join("") :
+  const openVotes = S.votes.filter(v=>!voteClosed(v)).sort((a,b)=>(a.closesAtIso||"").localeCompare(b.closesAtIso||""));
+  const attention = items.length ? items.map(i => i.k==="fu" ? contactRow(i.r,true) : taskRow(i.r)).join("") :
     `<div class="empty">Nothing overdue or due this week.</div>`;
   const act = activeMembers();
   const counts = act.map(m=>({m, n: openT.filter(t=>t.ownerId===m.id).length, late: lateT.filter(t=>t.ownerId===m.id).length}));
@@ -708,18 +725,51 @@ function viewOverview(){
     <div class="tile"><b>${act.length}</b><span>Council members</span></div>
   </div>
   <div class="grid2">
+    <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
+    ${openVotes.length ? `<section class="panel"><div class="section-head"><div><h2>Open votes</h2><p class="sub">Vote here, or open the vote to see the details.</p></div></div><div>${openVotes.map(v=>ovVote(v)).join("")}</div></section>` : ""}
     <section class="panel">
       <div class="section-head"><div><h2>Needs attention</h2><p class="sub">Overdue first, then anything due in the next 7 days.</p></div></div>
       <div class="list">${attention}</div>
     </section>
+    </div>
     <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
       ${orph.length ? `<section class="panel"><h3>Tasks without an owner (${orph.length})</h3><p class="sub" style="margin-top:-6px;margin-bottom:10px">Unassigned, or the owner has left council.</p><div class="list">${orph.map(t=>`<div class="row"><div><div class="title">${esc(t.title)}</div><div class="meta"><span>${esc(memberName(t.ownerId))}</span><span class="date">${fmt(t.due)}</span></div></div><div class="acts">${ro()?"":`<button class="small" data-act="edit-task" data-id="${t.id}">Assign</button>`}</div></div>`).join("")}</div></section>` : ""}
       <section class="panel">
-        <h3>Open tasks by member</h3>
-        ${counts.length ? `<div class="list">${counts.map(c=>`<div class="row"><div><div class="title">${esc(c.m.name)}</div><div class="load"><div class="bar" style="width:${Math.round(c.n/max*100)}%;max-width:140px"></div><span class="meta">${c.n} open${c.late?` · <span style="color:var(--late)">${c.late} late</span>`:""}</span></div></div></div>`).join("")}</div>` : `<div class="empty">Add council members to see who's carrying what.</div>`}
+        <h3>Open tasks by member</h3><p class="sub" style="margin-top:-6px;margin-bottom:6px">Click a name to see their tasks.</p>
+        ${counts.length ? `<div class="list">${counts.map(c=>{ const pv = votesAwaiting(c.m.id).length; return `<div class="row clickable" role="button" tabindex="0" data-act="member-tasks" data-id="${c.m.id}" aria-label="Show ${esc(c.m.name)}'s tasks"><div><div class="title">${esc(c.m.name)}${c.m.id===myMemberId()?' <span class="you-tag">(you)</span>':""}${pv?` <span class="pill soon">${pv} vote${pv===1?"":"s"} pending</span>`:""}</div><div class="load"><div class="bar" style="width:${Math.round(c.n/max*100)}%;max-width:140px"></div><span class="meta">${c.n} open${c.late?` · <span style="color:var(--late)">${c.late} late</span>`:""}</span></div></div></div>`; }).join("")}</div>` : `<div class="empty">Add council members to see who's carrying what.</div>`}
       </section>
     </div>
   </div>`;
+}
+
+const votesAwaiting = mid => S.votes.filter(v => !voteClosed(v) && !S.ballots.some(b => b.voteId===v.id && b.memberId===mid));
+const voteCloses = v => v.closesAtIso ? fmt(new Date(v.closesAtIso).toLocaleDateString("en-CA")) : "";
+function ballotButtons(v){
+  const mine = myBallot(v); const os = v.options && v.options.length ? v.options : VOTE_MOTION;
+  if(ro() || !member(myMemberId())) return "";
+  return `<div class="ballot" role="group" aria-label="Cast your vote">${os.map(o=>`<button type="button" class="small ${mine && mine.choice===o?"chosen":""}" data-act="cast" data-vid="${v.id}" data-choice="${esc(o)}" aria-pressed="${!!(mine && mine.choice===o)}">${esc(o)}</button>`).join("")}</div>`;
+}
+function ovVote(v){
+  const mine = myBallot(v); const ds = dueState(new Date(v.closesAtIso).toLocaleDateString("en-CA"), false);
+  return `<div class="ov-vote"><div><div class="title"><b>${esc(v.title)}</b>${exPill(v)}</div>
+    <div class="meta">${mine?`<span class="pill ok">You voted ${esc(mine.choice)}</span>`:`<span class="pill soon">Your vote needed</span>`}<span>Closes <span class="date">${voteCloses(v)}</span></span>${ds && ds.cls!=="late"?`<span class="pill ${ds.cls}">${ds.text.replace(/^Due/,"Closes")}</span>`:""}<span>${voteBallots(v).length} of ${activeMembers().length} voted</span></div></div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">${ballotButtons(v)}<button type="button" class="small" data-act="goto-vote" data-vid="${v.id}">View vote</button></div></div>`;
+}
+let mpOpen = null;
+function memberPanelBody(mid){
+  const m = member(mid); if(!m) return `<div class="empty">This member is no longer on council.</div>`;
+  const me = mid === myMemberId(); const first = me ? "you" : esc(m.name.split(" ")[0]);
+  const tasks = S.tasks.filter(t=>t.ownerId===mid && t.status!=="done").sort((a,b)=>(taskLate(b)-taskLate(a)) || (a.due||"9999").localeCompare(b.due||"9999"));
+  const pv = votesAwaiting(mid);
+  const flag = pv.length ? `<div class="mp-flag"><h3>${pv.length} open vote${pv.length===1?"":"s"} waiting on ${first}</h3>${pv.map(v=>`<div style="padding:6px 0;display:flex;flex-direction:column;gap:6px"><div><b>${esc(v.title)}</b> <span class="meta">· closes ${voteCloses(v)}</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">${me?ballotButtons(v):`<span class="meta">${esc(m.name.split(" ")[0])} hasn't voted yet.</span>`}<button type="button" class="small" data-act="goto-vote" data-vid="${v.id}">View vote</button></div></div>`).join("")}</div>` : "";
+  const rows = tasks.map(t => { const ds = dueState(t.due, false); return `<div class="mp-task"><div style="min-width:0"><div class="title">${esc(t.title)}${exPill(t)}</div><div class="meta">${t.due?`<span class="date">Due ${fmt(t.due)}</span>`:"<span>No due date</span>"}${ds?`<span class="pill ${ds.cls}">${ds.text}</span>`:""}${t.category?`<span>${esc(t.category)}</span>`:""}${cmCount(t)}</div></div>
+    <div class="acts">${ro()?`<span class="pill">${statusLabel(t.status)}</span>`:`<select data-qs="${t.id}" aria-label="Status of ${esc(t.title)}">${opts(STATUSES, t.status)}</select><button type="button" class="small" data-act="edit-task" data-id="${t.id}">Open</button>`}</div></div>`; }).join("");
+  return `${flag}<h3 style="margin:0 0 4px">${tasks.length} open task${tasks.length===1?"":"s"}</h3>${tasks.length ? `<div>${rows}</div>` : `<div class="empty">${me?"You have":`${esc(m.name.split(" ")[0])} has`} no open tasks.</div>`}`;
+}
+function memberTasksModal(mid){
+  const m = member(mid); if(!m) return;
+  openModal(`<h2>${mid===myMemberId()?"Your tasks and votes":esc(m.name)}</h2><p class="sub" style="margin-top:-8px;margin-bottom:14px">${esc(roleName(m.role)||"")}${mid===myMemberId()?"":` · change a status here, or open a task for the details`}</p><div id="mpBody">${memberPanelBody(mid)}</div><div class="modal-acts"><div></div><div><button type="button" data-act="close">Close</button></div></div>`);
+  mpOpen = mid;
 }
 
 function taskRow(t){
@@ -820,13 +870,14 @@ function viewMembers(){
 
 /* ---------- modals ---------- */
 function openModal(html, onMount){
+  mpOpen = null;
   $("#modalRoot").innerHTML = `<div class="scrim" data-scrim><div class="modal" role="dialog" aria-modal="true">${html}</div></div>`;
   const first = $("#modalRoot input, #modalRoot select, #modalRoot textarea"); if(first) first.focus();
   onMount && onMount($("#modalRoot .modal"));
 }
 const closeModal = () => {
   if(mf && mf.isNew && mf.files.length){ mf.files.forEach(f => files.remove(f).catch(()=>{})); }
-  mf = null; cm = null; $("#modalRoot").innerHTML = "";
+  mf = null; cm = null; mpOpen = null; $("#modalRoot").innerHTML = "";
 };
 const opts = (list, val) => list.map(([v,l])=>`<option value="${esc(v)}" ${v===val?"selected":""}>${esc(l)}</option>`).join("");
 const memberOpts = (val, blank="Unassigned", pm=false) => `<option value="">${blank}</option>` + (pm ? `<option value="pm" ${val==="pm"?"selected":""}>Property Manager</option>` : "") + opts(activeMembers().map(m=>[m.id,m.name]).concat(val && member(val)?.active===false ? [[val, memberName(val)]] : []), val);
@@ -1297,7 +1348,7 @@ function voteCard(v){
   const ds = closed ? null : dueState(v.closesAtIso ? v.closesAtIso.slice(0,10) && new Date(v.closesAtIso).toLocaleDateString("en-CA") : "", false);
   const task = v.taskId ? S.tasks.find(t=>t.id===v.taskId) : null;
   const out = closed ? voteOutcome(v) : null;
-  return `<article class="vote ${closed?"closed":""}">
+  return `<article class="vote ${closed?"closed":""}" id="vote-${v.id}">
     <div class="vote-head">
       <div style="min-width:0"><h3>${esc(v.title)}${exPill(v)}</h3>
         <div class="meta">${v.kind==="choice"?"Choose one":"Motion"} · opened by ${esc(memberName(v.createdBy))} ${v.createdAt?ago(v.createdAt):""} · ${closed ? `closed` : `closes <span class="date">${fmt(new Date(v.closesAtIso).toLocaleDateString("en-CA"))}</span>`}${ds?` <span class="pill ${ds.cls}">${ds.text.replace("Due","Closes")}</span>`:""}${task?` · task: ${esc(task.title)}`:""}</div>
@@ -1561,6 +1612,8 @@ document.addEventListener("click", async ev => {
     case "close": closeModal(); break;
     case "new-task": taskModal(); break;
     case "edit-task": taskModal(S.tasks.find(t=>t.id===id)); break;
+    case "member-tasks": memberTasksModal(id); break;
+    case "goto-vote": { const vid = b.dataset.vid; closeModal(); if(location.hash !== "#votes") location.hash = "#votes"; setTimeout(()=>{ const el = document.getElementById("vote-"+vid); if(el){ el.scrollIntoView({block:"center", behavior:"smooth"}); el.classList.add("flash"); setTimeout(()=>el.classList.remove("flash"), 1800); } }, 80); break; }
     case "new-contact": contactModal(); break;
     case "edit-contact": contactModal(S.contacts.find(c=>c.id===id)); break;
     case "new-member": memberModal(); break;
@@ -1804,7 +1857,7 @@ document.addEventListener("click", async ev => {
 document.addEventListener("keydown", ev => {
   if(ev.key==="Escape" && bellOpen){ toggleBell(false); $("#bellBtn").focus(); return; }
   if(ev.key==="Escape" && $("#modalRoot").innerHTML) closeModal();
-  if((ev.key==="Enter"||ev.key===" ") && ev.target.matches(".card[data-act]")){ ev.preventDefault(); ev.target.click(); }
+  if((ev.key==="Enter"||ev.key===" ") && ev.target.matches(".card[data-act], .row.clickable[data-act]")){ ev.preventDefault(); ev.target.click(); }
 });
 document.addEventListener("input", ev => {
   if(ev.target.id === "cSearch"){ const pos = ev.target.selectionStart; cfilt.q = ev.target.value; render(); const el = $("#cSearch"); if(el){ el.focus(); el.setSelectionRange(pos,pos); } return; }
@@ -1812,7 +1865,12 @@ document.addEventListener("input", ev => {
   const k = ev.target.dataset.k; mins.items[+i][k] = k === "on" ? ev.target.checked : ev.target.value;
   if(k === "on"){ ev.target.closest(".rv").classList.toggle("off", !ev.target.checked); const n = mins.items.filter(x=>x.on).length; const btn = $('[data-act="create-from-minutes"]'); btn.textContent = `Create ${n} task${n===1?"":"s"}`; btn.disabled = !n; }
 });
-document.addEventListener("change", ev => {
+document.addEventListener("change", async ev => {
+  if(ev.target.dataset && ev.target.dataset.qs){
+    const t = S.tasks.find(x=>x.id===ev.target.dataset.qs); const st = ev.target.value; if(!t || t.status===st) return;
+    if(await store.set("tasks", t.id, {...clean(t), status:st})){ toast(`Moved to ${statusLabel(st)}`); logActivity({type:"task", text:`moved "${t.title}" to ${statusLabel(st)}`, taskId:t.id}); }
+    return;
+  }
   if(ev.target.dataset && ev.target.dataset.rv !== undefined){ const k = ev.target.dataset.k; if(k !== "on" && mins) mins.items[+ev.target.dataset.rv][k] = ev.target.value; return; }
   const id = ev.target.id;
   if(id==="cTradeF"){ cfilt.trade = ev.target.value; render(); return; }
