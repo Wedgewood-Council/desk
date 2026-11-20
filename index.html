@@ -223,7 +223,7 @@ pre.draft{white-space:pre-wrap;font-family:var(--body);background:var(--bg);bord
     <nav id="nav">
       <a href="#overview" data-view="overview">Overview</a>
       <a href="#tasks" data-view="tasks">Tasks</a>
-      <a href="#pm" data-view="pm">Property manager</a>
+      <a href="#pm" data-view="pm">Property Manager</a>
       <a href="#members" data-view="members">Members</a>
     </nav>
   </div>
@@ -244,7 +244,8 @@ pre.draft{white-space:pre-wrap;font-family:var(--body);background:var(--bg);bord
 (() => {
 const STATUSES = [["todo","To do"],["doing","In progress"],["waiting","Waiting on PM"],["done","Done"]];
 const CATEGORIES = ["Maintenance","Repairs","Landscaping","Finance","Insurance","Bylaws","AGM / meetings","Other"];
-const ROLES = ["President","Vice President","Treasurer","Secretary","Member at large"];
+const ROLES = ["President","Vice President","Treasurer","Secretary","Member"];
+const roleName = r => r === "Member at large" ? "Member" : (r || "");
 const S = { ownerEmail:"", members:[], tasks:[], contacts:[], comments:[], activity:[], pm:{}, mode:"loading", readOnly:false, loaded:{} };
 let db = null;
 
@@ -388,7 +389,7 @@ function demoData(){
     {id:"m1",name:"Alex Chen",role:"President",unit:"304",email:"alex@example.com",phone:"",active:true,example:true},
     {id:"m2",name:"Priya Sandhu",role:"Treasurer",unit:"112",email:"priya@example.com",phone:"",active:true,example:true},
     {id:"m3",name:"Jordan Blake",role:"Secretary",unit:"508",email:"jordan@example.com",phone:"",active:true,example:true},
-    {id:"m4",name:"Sam Okafor",role:"Member at large",unit:"201",email:"",phone:"",active:true,example:true},
+    {id:"m4",name:"Sam Okafor",role:"Member",unit:"201",email:"",phone:"",active:true,example:true},
   ];
   const hrs = h => new Date(Date.now() - h*3600000).toISOString();
   return {
@@ -728,7 +729,7 @@ function viewMembers(){
   const act = activeMembers(), former = S.members.filter(m=>m.active===false);
   const rowsHtml = list => list.map(m => {
     const open = S.tasks.filter(t=>t.ownerId===m.id && t.status!=="done").length;
-    return `<tr><td><b>${esc(m.name)}</b>${isOwnerMember(m)?' <span class="pill acc" title="Can always sign in and is the only one who can transfer ownership">Owner</span>':""}${exPill(m)}</td><td>${esc(m.role||"")}</td><td class="date">${esc(m.unit||"")}</td><td><span style="overflow-wrap:anywhere">${esc(m.email||"")}</span>${m.phone?`<br><span class="date">${esc(m.phone)}</span>`:""}</td><td class="date">${m.termEnds?fmt(m.termEnds):"—"}</td><td>${open}</td>
+    return `<tr><td><b>${esc(m.name)}</b>${isOwnerMember(m)?' <span class="pill acc" title="Can always sign in and is the only one who can transfer ownership">Owner</span>':""}${exPill(m)}</td><td>${esc(roleName(m.role))}</td><td class="date">${esc(m.unit||"")}</td><td><span style="overflow-wrap:anywhere">${esc(m.email||"")}</span>${m.phone?`<br><span class="date">${esc(m.phone)}</span>`:""}</td><td class="date">${m.termEnds?fmt(m.termEnds):"—"}</td><td>${open}</td>
       <td style="white-space:nowrap">${ro()?"":`<button class="small" data-act="edit-member" data-id="${m.id}">Edit</button>`}</td></tr>`;
   }).join("");
   const table = list => `<div class="tscroll"><table><thead><tr><th>Name</th><th>Role</th><th>Unit</th><th>Contact</th><th>Term ends</th><th>Open tasks</th><th></th></tr></thead><tbody>${rowsHtml(list)}</tbody></table></div>`;
@@ -802,7 +803,7 @@ function memberModal(m){
   openModal(`<h2>${isNew?"Add council member":"Edit member"}</h2>
   <form class="form" id="memberForm">
     <label class="full">Name<input id="mName" name="name" required value="${esc(m.name)}"></label>
-    <label>Role<select id="mRole" name="role">${opts(ROLES.map(r=>[r,r]), m.role||"Member at large")}</select></label>
+    <label>Role<select id="mRole" name="role">${opts(ROLES.map(r=>[r,r]), roleName(m.role)||"Member")}</select></label>
     <label>Unit #<input id="mUnit" name="unit" value="${esc(m.unit)}"></label>
     <label>Email (used to sign in)<input id="mEmail" type="email" name="email" required value="${esc(m.email)}" ${isOwnerMember(m)?'readonly title="The owner\'s sign-in email can only change by transferring ownership"':""}></label>
     <label>Phone<input id="mPhone" name="phone" value="${esc(m.phone)}"></label>
@@ -843,7 +844,7 @@ For reference: ${c.summary}`:""}
 Could you let us know where this stands and when we can expect an update?
 
 Thanks,
-${who ? who.name + (who.role?`, ${who.role}`:"") : "[Your name]"}
+${who ? who.name + (who.role ? `, ${roleName(who.role)==="Member" ? "Council Member" : roleName(who.role)}` : "") : "[Your name]"}
 Wedgewood Strata Council`;
   openModal(`<h2>Chase the property manager</h2>
   <p class="sub" style="margin-top:-8px;margin-bottom:10px">Copy this into your email and send it to <span class="date" style="user-select:all">${esc(pm.email || "the property manager")}</span>${pm.phone?`, or call <span class="date" style="user-select:all">${esc(pm.phone)}</span>`:""}.</p>
@@ -1153,7 +1154,7 @@ function openPicker(ta){
   const items = activeMembers().filter(m => !mq.q || m.name.toLowerCase().startsWith(mq.q) || m.name.toLowerCase().split(/\s+/).some(w=>w.startsWith(mq.q))).slice(0,6);
   if(!items.length || (mq.q.includes(" ") && !items.some(m=>m.name.toLowerCase().startsWith(mq.q)))){ closePicker(); return; }
   mp = {ta, start: mq.start, items, sel: mp && mp.ta===ta ? Math.min(mp.sel, items.length-1) : 0, box};
-  box.innerHTML = items.map((m,i)=>`<button type="button" role="option" aria-selected="${i===mp.sel}" data-act="pick-mention" data-mid="${m.id}"><b>${esc(m.name)}</b><span>${esc(m.role||"")}</span></button>`).join("");
+  box.innerHTML = items.map((m,i)=>`<button type="button" role="option" aria-selected="${i===mp.sel}" data-act="pick-mention" data-mid="${m.id}"><b>${esc(m.name)}</b><span>${esc(roleName(m.role))}</span></button>`).join("");
   box.hidden = false;
 }
 function closePicker(){ if(mp && mp.box) mp.box.hidden = true; mp = null; }
