@@ -181,6 +181,8 @@ pre.draft{white-space:pre-wrap;font-family:var(--body);background:var(--bg);bord
 .vote-head .meta{font-size:13px;color:var(--muted)}
 .pill.big{font-size:13px;padding:3px 10px}
 .vote-details{font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--fg)}
+.vote-details.clamped{display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.vd-more{font-size:13px;margin-top:2px}
 .done-votes{margin-top:28px}
 .done-votes>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
 .done-votes>summary::-webkit-details-marker{display:none}
@@ -702,6 +704,7 @@ function render(){
   const html = v==="tasks" ? viewTasks() : v==="pm" ? viewPM() : v==="votes" ? viewVotes() : v==="contractors" ? viewContractors() : v==="members" ? viewMembers() : viewOverview();
   $("#view").innerHTML = html;
   if(mpOpen && $("#mpBody")) $("#mpBody").innerHTML = mpOpen();
+  fitVoteDetails();
   const f = $("#view [data-filter-root]"); if(f) restoreFilters();
   renderBell(); renderComments();
 }
@@ -1387,7 +1390,7 @@ function voteCard(v){
       </div>
       ${out ? `<span class="pill ${out.cls} big">${out.text}</span>` : mine ? `<span class="pill ok">You voted: ${esc(mine.choice)}</span>` : `<span class="pill soon">Your vote needed</span>`}
     </div>
-    ${v.details ? `<div class="vote-details">${renderMentions(v.details)}</div>` : ""}
+    ${v.details ? `<div class="vd-wrap"><div class="vote-details ${expandedVotes.has(v.id)?"":"clamped"}" id="vd-${v.id}">${renderMentions(v.details)}</div><button type="button" class="link vd-more" data-act="vd-toggle" data-vid="${v.id}" hidden>${expandedVotes.has(v.id)?"less":"more..."}</button></div>` : ""}
     ${!closed ? `<div class="ballot" role="group" aria-label="Cast your vote">${tally.map(x=>`<button type="button" class="${mine && mine.choice===x.o?"chosen":""}" data-act="cast" data-vid="${v.id}" data-choice="${esc(x.o)}" aria-pressed="${!!(mine && mine.choice===x.o)}">${esc(x.o)}</button>`).join("")}${mine?`<button type="button" class="link" data-act="uncast" data-vid="${v.id}">Withdraw my vote</button>`:""}</div>` : ""}
     <div class="tally">${tally.map(x=>`<div class="trow"><span class="tl">${esc(x.o)}</span><span class="tbar"><span style="width:${Math.round(x.n/max*100)}%"></span></span><span class="tn">${x.n}</span><span class="tw">${x.who.map(id=>esc(id===myMemberId()?"You":memberName(id).split(" ")[0])).join(", ")}</span></div>`).join("")}</div>
     <div class="vote-foot"><span class="meta">${cast} of ${eligible} member${eligible===1?"":"s"} voted${!closed && notYet.length ? ` · waiting on ${notYet.map(m=>esc(m.id===myMemberId()?"you":m.name.split(" ")[0])).join(", ")}` : ""}</span>
@@ -1396,10 +1399,12 @@ function voteCard(v){
   </article>`;
 }
 let showDoneVotes = false;
+const expandedVotes = new Set();
+function fitVoteDetails(){ document.querySelectorAll(".vd-wrap").forEach(w => { const d = w.querySelector(".vote-details"), b = w.querySelector(".vd-more"); if(!d || !b) return; const was = d.classList.contains("clamped"); d.classList.add("clamped"); const over = d.scrollHeight > d.clientHeight + 2; if(!was) d.classList.remove("clamped"); b.hidden = !over; }); }
 function viewVotes(){
   const open = S.votes.filter(v=>!voteClosed(v)).sort((a,b)=>(a.closesAtIso||"").localeCompare(b.closesAtIso||""));
   const closed = S.votes.filter(voteClosed).sort((a,b)=>(b.closedAt||b.closesAtIso||"").localeCompare(a.closedAt||a.closesAtIso||""));
-  return `<div class="section-head"><div><h2>Votes</h2><p class="sub">Council decisions between meetings. Everyone sees who voted and how, so results can go straight into the minutes.</p></div>${ro()?"":`<button class="primary" data-act="new-vote">New vote</button>`}</div>
+  return `<div class="section-head"><div><h2>Open Votes</h2><p class="sub">Council decisions between meetings. Everyone sees who voted and how, so results can go straight into the minutes.</p></div>${ro()?"":`<button class="primary" data-act="new-vote">New vote</button>`}</div>
   ${open.length ? `<div class="votes">${open.map(voteCard).join("")}</div>` : `<div class="empty">No open votes. Use <b>New vote</b> to put a motion to council, like "Approve the $4,200 gate motor quote".</div>`}
   <details class="done-votes" id="doneVotes" ${showDoneVotes?"open":""}><summary><h3>Completed Votes <span class="count">(${closed.length})</span></h3><span class="sub">${showDoneVotes?"Hide":"Show"}</span></summary>${closed.length ? `<div class="votes">${closed.map(voteCard).join("")}</div>` : `<div class="empty">No completed votes yet. When a vote closes, it's kept here with its result and who voted.</div>`}</details>`;
 }
@@ -1647,6 +1652,7 @@ document.addEventListener("click", async ev => {
     case "edit-task": taskModal(S.tasks.find(t=>t.id===id)); break;
     case "member-tasks": memberTasksModal(id); break;
     case "tile": tileModal(id); break;
+    case "vd-toggle": { const vid = b.dataset.vid, d = document.getElementById("vd-"+vid); if(expandedVotes.has(vid)){ expandedVotes.delete(vid); d.classList.add("clamped"); b.textContent = "more..."; } else { expandedVotes.add(vid); d.classList.remove("clamped"); b.textContent = "less"; } break; }
     case "goto-vote": { const vid = b.dataset.vid; closeModal(); if(location.hash !== "#votes") location.hash = "#votes"; setTimeout(()=>{ const el = document.getElementById("vote-"+vid); if(el){ el.scrollIntoView({block:"center", behavior:"smooth"}); el.classList.add("flash"); setTimeout(()=>el.classList.remove("flash"), 1800); } }, 80); break; }
     case "new-contact": contactModal(); break;
     case "edit-contact": contactModal(S.contacts.find(c=>c.id===id)); break;
@@ -1888,7 +1894,8 @@ document.addEventListener("click", async ev => {
     }
   }
 });
-document.addEventListener("toggle", ev => { if(ev.target.id === "doneVotes"){ showDoneVotes = ev.target.open; const t = ev.target.querySelector("summary .sub"); if(t) t.textContent = showDoneVotes ? "Hide" : "Show"; } }, true);
+window.addEventListener("resize", () => fitVoteDetails());
+document.addEventListener("toggle", ev => { if(ev.target.id === "doneVotes"){ showDoneVotes = ev.target.open; fitVoteDetails(); const t = ev.target.querySelector("summary .sub"); if(t) t.textContent = showDoneVotes ? "Hide" : "Show"; } }, true);
 document.addEventListener("keydown", ev => {
   if(ev.key==="Escape" && bellOpen){ toggleBell(false); $("#bellBtn").focus(); return; }
   if(ev.key==="Escape" && $("#modalRoot").innerHTML) closeModal();
