@@ -1401,7 +1401,7 @@ function viewVotes(){
   const closed = S.votes.filter(voteClosed).sort((a,b)=>(b.closedAt||b.closesAtIso||"").localeCompare(a.closedAt||a.closesAtIso||""));
   return `<div class="section-head"><div><h2>Votes</h2><p class="sub">Council decisions between meetings. Everyone sees who voted and how, so results can go straight into the minutes.</p></div>${ro()?"":`<button class="primary" data-act="new-vote">New vote</button>`}</div>
   ${open.length ? `<div class="votes">${open.map(voteCard).join("")}</div>` : `<div class="empty">No open votes. Use <b>New vote</b> to put a motion to council, like "Approve the $4,200 gate motor quote".</div>`}
-  ${closed.length ? `<details class="done-votes" id="doneVotes" ${showDoneVotes?"open":""}><summary><h3>Completed Votes <span class="count">(${closed.length})</span></h3><span class="sub">${showDoneVotes?"Hide":"Show"}</span></summary><div class="votes">${closed.map(voteCard).join("")}</div></details>` : ""}`;
+  <details class="done-votes" id="doneVotes" ${showDoneVotes?"open":""}><summary><h3>Completed Votes <span class="count">(${closed.length})</span></h3><span class="sub">${showDoneVotes?"Hide":"Show"}</span></summary>${closed.length ? `<div class="votes">${closed.map(voteCard).join("")}</div>` : `<div class="empty">No completed votes yet. When a vote closes, it's kept here with its result and who voted.</div>`}</details>`;
 }
 function voteModal(){
   openModal(`<h2>New vote</h2>
