@@ -196,6 +196,31 @@ pre.draft{white-space:pre-wrap;font-family:var(--body);background:var(--bg);bord
 .vote-acts{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 a.btn{text-decoration:none}
 @media (max-width:520px){.trow{grid-template-columns:minmax(60px,max-content) minmax(40px,1fr) 2ch}.tw{grid-column:1/-1;margin-top:-4px}}
+.ctr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.ctr{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.ctr.avoid{opacity:.75}
+.ctr-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.ctr-head h3{margin:0 0 2px;font-size:16px;overflow-wrap:anywhere}
+.ctr-head .meta{font-size:13px;color:var(--muted)}
+.ctr-contact{display:flex;flex-wrap:wrap;gap:6px 22px}
+.ctr-contact .v{font-family:var(--mono);font-size:13px;color:var(--fg);overflow-wrap:anywhere}
+.ctr-contact a.v{color:var(--accent)}
+.ctr-stats{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;color:var(--muted)}
+.ctr-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}
+.filters input[type=search]{min-width:220px;flex:1 1 220px}
+.sub-block{border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.pc-list,.q-list{display:flex;flex-direction:column;gap:8px}
+.pc-row{display:grid;grid-template-columns:1.1fr 1fr 1fr 1.3fr auto;gap:6px}
+.pc-row input{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);min-width:0}
+.q-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px;align-items:center;font-size:14px}
+.q-row .fmain{display:flex;flex-direction:column;min-width:0}
+.q-row .meta{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.q-row .meta a{color:var(--accent)}
+.q-row select{font:inherit;font-size:12px;padding:3px 4px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
+.q-add summary{cursor:pointer;color:var(--accent);font-weight:500;font-size:14px}
+.q-form{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.q-form .full{grid-column:1/-1}
+@media (max-width:520px){.pc-row{grid-template-columns:1fr 1fr}.pc-row button{grid-column:2;justify-self:end}.q-form{grid-template-columns:1fr}.q-row{grid-template-columns:auto minmax(0,1fr)}.q-row select,.q-row button{grid-column:2}}
 .toast-act{margin-left:14px;background:none;border:none;color:inherit;text-decoration:underline;font-weight:600;padding:0;cursor:pointer}
 .theme-btn{display:inline-flex;align-items:center;gap:6px}
 .history{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:14px}
@@ -253,6 +278,7 @@ a.btn{text-decoration:none}
       <a href="#tasks" data-view="tasks">Tasks</a>
       <a href="#pm" data-view="pm">Property Manager Log</a>
       <a href="#votes" data-view="votes">Votes</a>
+      <a href="#contractors" data-view="contractors">Contractors</a>
       <a href="#members" data-view="members">Members</a>
     </nav>
   </div>
@@ -275,7 +301,7 @@ const STATUSES = [["todo","To do"],["doing","In progress"],["waiting","Waiting o
 const CATEGORIES = ["Maintenance","Repairs","Landscaping","Finance","Insurance","Bylaws","AGM / meetings","Other"];
 const ROLES = ["President","Vice President","Treasurer","Secretary","Member"];
 const roleName = r => r === "Member at large" ? "Member" : (r || "");
-const S = { ownerEmail:"", votes:[], ballots:[], members:[], tasks:[], contacts:[], comments:[], activity:[], pm:{}, mode:"loading", readOnly:false, loaded:{} };
+const S = { contractors:[], ownerEmail:"", votes:[], ballots:[], members:[], tasks:[], contacts:[], comments:[], activity:[], pm:{}, mode:"loading", readOnly:false, loaded:{} };
 let db = null;
 
 /* ---------- helpers ---------- */
@@ -335,7 +361,7 @@ const store = {
   },
   async del(coll, id){
     if(demo()){
-      if(coll === "tasks") (S.tasks.find(t=>t.id===id)?.files||[]).forEach(f=>files.remove(f));
+      if(coll === "tasks" || coll === "contractors") (S[coll].find(t=>t.id===id)?.files||[]).forEach(f=>files.remove(f));
       S[coll] = S[coll].filter(x=>x.id!==id); render(); return true;
     }
     try {
@@ -345,7 +371,7 @@ const store = {
         if(m && m.email) b.delete(fdb.collection("access").doc(lc(m.email)));
         await b.commit();
       } else {
-        if(coll === "tasks") for(const f of (S.tasks.find(t=>t.id===id)?.files||[])) await files.remove(f);
+        if(coll === "tasks" || coll === "contractors") for(const f of (S[coll].find(t=>t.id===id)?.files||[])) await files.remove(f);
         await fdb.collection(coll).doc(id).delete();
       }
       return true;
@@ -386,11 +412,11 @@ function guessLabel(name){
 }
 const fmtSize = b => b < 1024*1024 ? `${Math.max(1,Math.round(b/1024))} KB` : `${(b/1024/1024).toFixed(1)} MB`;
 const files = {
-  async upload(taskId, file, onProgress){
+  async upload(taskId, file, onProgress, coll="tasks"){
     const id = uid(); const safe = file.name.replace(/[^\w.\- ]+/g, "_").slice(-120);
     const meta = {id, name:file.name, size:file.size, type:file.type||"", label:guessLabel(file.name), addedBy: myMemberId(), addedAt: today()};
     if(demo()){ meta.url = URL.createObjectURL(file); meta.path = ""; onProgress && onProgress(1); return meta; }
-    const path = `tasks/${taskId}/${id}-${safe}`;
+    const path = `${coll}/${taskId}/${id}-${safe}`;
     const task = firebase.storage().ref(path).put(file, {contentType: file.type || "application/octet-stream"});
     await new Promise((res, rej) => task.on("state_changed", s => onProgress && onProgress(s.bytesTransferred / s.totalBytes), rej, res));
     meta.path = path; meta.url = await task.snapshot.ref.getDownloadURL();
@@ -422,6 +448,11 @@ function demoData(){
   ];
   const hrs = h => new Date(Date.now() - h*3600000).toISOString();
   return {
+    contractors:[
+      {id:"ct1",company:"Coastal Gates Ltd.",trade:"Gates & doors",status:"quoting",phone:"604-555-0177",email:"service@coastalgates.example",website:"",insuranceExpires:addDays(t,140),wsbc:true,notes:"Lowest of three quotes for the gate motor. Can start Dec 8.",contacts:[{name:"Dana Ruiz",role:"Estimator",phone:"604-555-0178",email:"dana@coastalgates.example"}],quotes:[{id:"q1",date:addDays(t,-5),amount:4200,description:"Replace parkade gate motor and controller",status:"pending",taskId:"t1",fileId:""}],files:[],createdAt:addDays(t,-20),example:true},
+      {id:"ct2",company:"Metro Door Services",trade:"Gates & doors",status:"quoting",phone:"604-555-0123",email:"quotes@metrodoor.example",website:"",insuranceExpires:"",wsbc:false,notes:"",contacts:[{name:"Lee Park",role:"Sales",phone:"",email:"lee@metrodoor.example"}],quotes:[{id:"q2",date:addDays(t,-8),amount:4950,description:"Gate motor replacement, 2-year warranty",status:"pending",taskId:"t1",fileId:""}],files:[],createdAt:addDays(t,-18),example:true},
+      {id:"ct3",company:"Evergreen Grounds",trade:"Landscaping",status:"preferred",phone:"604-555-0190",email:"office@evergreen.example",website:"",insuranceExpires:addDays(t,25),wsbc:true,notes:"Our landscaper since 2023. Reliable, responsive.",contacts:[{name:"Sam Whitford",role:"Owner",phone:"604-555-0191",email:""},{name:"Office",role:"Scheduling",phone:"604-555-0190",email:"office@evergreen.example"}],quotes:[{id:"q3",date:addDays(t,-200),amount:9600,description:"2026 annual grounds maintenance contract",status:"accepted",taskId:"",fileId:""}],files:[],createdAt:addDays(t,-400),example:true},
+    ],
     votes:[
       {id:"vo1",title:"Approve Coastal Gates quote of $4,200 for parkade gate motor replacement",details:"Three quotes received (see the parkade gate task). Coastal Gates is lowest and can start Dec 8. Paid from the contingency reserve fund.",kind:"motion",options:[],closesAtIso:new Date(addDays(t,3)+"T23:59:59").toISOString(),status:"open",createdBy:"m3",createdAt:hrs(22),taskId:"t1",example:true},
       {id:"vo2",title:"Date for the 2027 AGM",details:"Amenity room is free on all three dates.",kind:"choice",options:["Tue Feb 23","Wed Feb 24","Thu Feb 25"],closesAtIso:new Date(addDays(t,-6)+"T23:59:59").toISOString(),status:"closed",closedAt:hrs(24*6),createdBy:"m1",createdAt:hrs(24*12),taskId:"",example:true},
@@ -450,7 +481,7 @@ function demoData(){
     members:m,
     pm:{company:"Example Property Management",name:"Taylor (PM)",email:"pm@example.com",phone:"604-555-0142",example:true},
     tasks:[
-      {id:"t1",title:"Get quotes for parkade gate repair",ownerId:"m1",status:"waiting",due:addDays(t,-3),category:"Repairs",notes:"PM to collect 3 quotes.",created:addDays(t,-20),example:true},
+      {id:"t1",contractorId:"ct1",title:"Get quotes for parkade gate repair",ownerId:"m1",status:"waiting",due:addDays(t,-3),category:"Repairs",notes:"PM to collect 3 quotes.",created:addDays(t,-20),example:true},
       {id:"t2",title:"Review draft 2027 operating budget",ownerId:"m2",status:"doing",due:addDays(t,5),category:"Finance",notes:"",created:addDays(t,-10),example:true},
       {id:"t3",title:"Circulate October council minutes",ownerId:"m3",status:"todo",due:addDays(t,2),category:"AGM / meetings",notes:"",created:addDays(t,-6),example:true},
       {id:"t4",title:"Fall gutter cleaning",ownerId:"m4",status:"done",due:addDays(t,-12),category:"Maintenance",notes:"Completed by contractor.",created:addDays(t,-40),example:true},
@@ -602,6 +633,7 @@ function startApp(){
   $("#whoami").textContent = me.email;
   S.mode = "live"; render();
   const timer = setTimeout(()=>{ if(Object.keys(S.loaded).length < 4){ S.slow = true; renderNotices(); } }, 10000);
+  unsubs.push(fdb.collection("contractors").onSnapshot(snap => { S.contractors = snap.docs.map(d=>({...d.data(), id:d.id})); render(); }, err => console.error(err)));
   unsubs.push(fdb.collection("votes").onSnapshot(snap => { S.votes = snap.docs.map(d=>({...d.data(), id:d.id})); render(); }, err => console.error(err)));
   unsubs.push(fdb.collection("ballots").onSnapshot(snap => { S.ballots = snap.docs.map(d=>({...d.data(), id:d.id})); render(); }, err => console.error(err)));
   unsubs.push(fdb.collection("comments").onSnapshot(snap => { S.comments = snap.docs.map(d=>({...d.data(), id:d.id})); render(); }, err => console.error(err)));
@@ -632,7 +664,7 @@ function renderNotices(){
 }
 
 /* ---------- routing ---------- */
-const VIEWS = ["overview","tasks","pm","votes","members"];
+const VIEWS = ["overview","tasks","pm","votes","contractors","members"];
 const currentView = () => { const h = location.hash.slice(1); return VIEWS.includes(h) ? h : "overview"; };
 window.addEventListener("hashchange", render);
 
@@ -647,7 +679,7 @@ function render(){
   renderNotices();
   $("#quickAdd").hidden = S.readOnly;
   if(S.mode === "loading"){ return; }
-  const html = v==="tasks" ? viewTasks() : v==="pm" ? viewPM() : v==="votes" ? viewVotes() : v==="members" ? viewMembers() : viewOverview();
+  const html = v==="tasks" ? viewTasks() : v==="pm" ? viewPM() : v==="votes" ? viewVotes() : v==="contractors" ? viewContractors() : v==="members" ? viewMembers() : viewOverview();
   $("#view").innerHTML = html;
   const f = $("#view [data-filter-root]"); if(f) restoreFilters();
   renderBell(); renderComments();
@@ -747,7 +779,7 @@ function viewTasks(){
   let body;
   if(!S.tasks.length) body = `<div class="empty">No tasks yet. Use <b>New task</b> to add the first one, like "Get quotes for roof inspection".</div>`;
   else if(filt.layout==="list") body = `<div class="panel"><div class="list">${ts.map(taskRow).join("") || `<div class="empty">No tasks match these filters.</div>`}</div></div>`;
-  else body = `<div class="board">${STATUSES.map(([k,label]) => { const col = ts.filter(t=>(t.status||"todo")===k); return `<div class="col"><h3><span>${label}</span><span>${col.length}</span></h3>${col.map(t=>{const ds=dueState(t.due,t.status==="done");return `<div class="card ${isPmTask(t)?"pm-card-task":""}" ${ro()?"":`data-act="edit-task" data-id="${t.id}" role="button" tabindex="0"`}>${isPmTask(t)?'<span class="pm-tag">PM task</span>':""}<div class="t">${esc(t.title)}</div><div class="m"><span>${esc(memberName(t.ownerId))}</span><span class="date">${fmt(t.due)}</span>${ds?`<span class="pill ${ds.cls}">${ds.text}</span>`:""}${t.category?`<span class="pill">${esc(t.category)}</span>`:""}${(t.files||[]).length?`<span class="pill" title="Documents">${clip}${t.files.length}</span>`:""}${cmCount(t)}${exPill(t)}</div></div>`}).join("")}</div>`; }).join("")}</div>`;
+  else body = `<div class="board">${STATUSES.map(([k,label]) => { const col = ts.filter(t=>(t.status||"todo")===k); return `<div class="col"><h3><span>${label}</span><span>${col.length}</span></h3>${col.map(t=>{const ds=dueState(t.due,t.status==="done");return `<div class="card ${isPmTask(t)?"pm-card-task":""}" ${ro()?"":`data-act="edit-task" data-id="${t.id}" role="button" tabindex="0"`}>${isPmTask(t)?'<span class="pm-tag">PM task</span>':""}<div class="t">${esc(t.title)}</div><div class="m"><span>${esc(memberName(t.ownerId))}</span><span class="date">${fmt(t.due)}</span>${ds?`<span class="pill ${ds.cls}">${ds.text}</span>`:""}${t.category?`<span class="pill">${esc(t.category)}</span>`:""}${t.contractorId && contractor(t.contractorId)?`<span class="pill" title="Contractor">${esc(contractor(t.contractorId).company)}</span>`:""}${(t.files||[]).length?`<span class="pill" title="Documents">${clip}${t.files.length}</span>`:""}${cmCount(t)}${exPill(t)}</div></div>`}).join("")}</div>`; }).join("")}</div>`;
   return `<div class="section-head"><div><h2>Tasks</h2><p class="sub">Every council action item, who owns it, and when it's due.</p></div>${ro()?"":`<div style="display:flex;gap:8px;flex-wrap:wrap"><button data-act="import-minutes">Import minutes</button><button class="primary" data-act="new-task">New task</button></div>`}</div>${filters}${body}`;
 }
 
@@ -801,7 +833,7 @@ function openModal(html, onMount){
 }
 const closeModal = () => {
   if(mf && mf.isNew && mf.files.length){ mf.files.forEach(f => files.remove(f).catch(()=>{})); }
-  mf = null; $("#modalRoot").innerHTML = "";
+  mf = null; cm = null; $("#modalRoot").innerHTML = "";
 };
 const opts = (list, val) => list.map(([v,l])=>`<option value="${esc(v)}" ${v===val?"selected":""}>${esc(l)}</option>`).join("");
 const memberOpts = (val, blank="Unassigned", pm=false) => `<option value="">${blank}</option>` + (pm ? `<option value="pm" ${val==="pm"?"selected":""}>Property Manager</option>` : "") + opts(activeMembers().map(m=>[m.id,m.name]).concat(val && member(val)?.active===false ? [[val, memberName(val)]] : []), val);
@@ -815,7 +847,7 @@ function deleteControl(kind, id){
 function taskModal(t, prefill){
   const isNew = !t; t = t || {status:"todo", due:addDays(today(),14), ownerId:"", category:"", ...(prefill||{})};
   const related = isNew ? [] : S.contacts.filter(c=>c.taskId===t.id);
-  mf = {taskId: isNew ? uid() : t.id, isNew, files: (t.files||[]).map(f=>({...f})), uploads: []};
+  mf = {coll:"tasks", taskId: isNew ? uid() : t.id, isNew, files: (t.files||[]).map(f=>({...f})), uploads: []};
   openModal(`<h2>${isNew?"New task":"Edit task"}</h2>
   <form class="form" id="taskForm">
     <label class="full">What needs doing<input id="tTitle" name="title" required value="${esc(t.title)}" placeholder="e.g. Get quotes for roof inspection"></label>
@@ -823,6 +855,7 @@ function taskModal(t, prefill){
     <label>Status<select id="tStatus" name="status">${opts(STATUSES, t.status)}</select></label>
     <label>Due date<input id="tDue" type="date" name="due" value="${esc(t.due||"")}"></label>
     <label>Category<select id="tCat" name="category"><option value="">—</option>${opts(CATEGORIES.map(c=>[c,c]), t.category)}</select></label>
+    ${S.contractors.length ? `<label class="full">Contractor (optional)<select id="tCtr" name="contractorId"><option value="">None</option>${opts(S.contractors.slice().sort((a,b)=>a.company.localeCompare(b.company)).map(c=>[c.id, `${c.company}${c.trade?` · ${c.trade}`:""}`]), t.contractorId||"")}</select></label>` : ""}
     <label class="full">Notes<span class="mention-wrap"><textarea id="tNotes" name="notes" data-mentions placeholder="Details. Type @ to tag a member.">${esc(t.notes)}</textarea><span class="mention-pop" role="listbox" hidden></span></span></label>
     ${related.length ? `<div class="full"><small class="sub">PM contacts about this task: ${related.map(c=>`${esc(c.subject)} (${fmt(c.date)})`).join("; ")}</small></div>`:""}
     ${attachSection()}
@@ -945,20 +978,27 @@ function renderFileList(){
 }
 async function persistFiles(){
   if(!mf || mf.isNew) return;
-  const t = S.tasks.find(x=>x.id===mf.taskId); if(!t) return;
-  await store.set("tasks", t.id, {...clean(t), files: mf.files});
+  const coll = mf.coll || "tasks";
+  const t = S[coll].find(x=>x.id===mf.taskId); if(!t) return;
+  await store.set(coll, t.id, {...clean(t), files: mf.files});
 }
-async function addFiles(list){
+async function addFiles(list, label){
+  const added = [];
   for(const file of list){
     const u = {name:file.name, p:0};
     if(file.size > MAX_FILE){ u.error = `Too large (${fmtSize(file.size)}). The limit is 25 MB.`; mf.uploads.push(u); renderFileList(); continue; }
     mf.uploads.push(u); renderFileList();
     try {
-      const meta = await files.upload(mf.taskId, file, p => { u.p = p; renderFileList(); });
-      mf.uploads = mf.uploads.filter(x=>x!==u); mf.files.push(meta); renderFileList(); await persistFiles();
-      if(!mf.isNew){ const t = S.tasks.find(x=>x.id===mf.taskId); logActivity({type:"doc", text:`attached ${meta.label.toLowerCase()} "${meta.name}" to "${t ? t.title : "a task"}"`, taskId:mf.taskId}); }
+      const meta = await files.upload(mf.taskId, file, p => { u.p = p; renderFileList(); }, mf.coll || "tasks");
+      if(label) meta.label = label;
+      mf.uploads = mf.uploads.filter(x=>x!==u); mf.files.push(meta); added.push(meta); renderFileList(); await persistFiles();
+      if(!mf.isNew){
+        if(mf.coll === "contractors"){ const c = contractor(mf.taskId); logActivity({type:"doc", text:`added ${meta.label.toLowerCase()} "${meta.name}" for ${c ? c.company : "a contractor"}`}); }
+        else { const t = S.tasks.find(x=>x.id===mf.taskId); logActivity({type:"doc", text:`attached ${meta.label.toLowerCase()} "${meta.name}" to "${t ? t.title : "a task"}"`, taskId:mf.taskId}); }
+      }
     } catch(e){ console.error(e); u.error = e.code === "storage/unauthorized" ? "You don't have permission to upload." : "Upload failed. Try again."; renderFileList(); }
   }
+  return added;
 }
 function wireFileDrop(modal){
   const input = $("#tFiles"); if(!input) return;
@@ -1320,6 +1360,106 @@ function pmTaskRow(t){
   </div>`;
 }
 
+/* ---------- contractors ---------- */
+const TRADES = ["Plumbing","Electrical","Roofing","HVAC / mechanical","Gates & doors","Fire safety","Landscaping","Snow removal","Painting","Cleaning / janitorial","Pest control","Windows & envelope","General contractor","Other"];
+const C_STATUS = [["quoting","Quoting now"],["used","Used before"],["preferred","Preferred"],["avoid","Do not use"]];
+const Q_STATUS = [["pending","Pending"],["accepted","Accepted"],["declined","Declined"]];
+const cStatusLabel = k => (C_STATUS.find(s=>s[0]===k)||C_STATUS[1])[1];
+const cStatusCls = k => k==="preferred" ? "ok" : k==="quoting" ? "acc" : k==="avoid" ? "late" : "";
+const money = n => (n === "" || n == null || isNaN(+n)) ? "" : (+n).toLocaleString("en-CA", {style:"currency", currency:"CAD", maximumFractionDigits: +n % 1 ? 2 : 0});
+const contractor = id => S.contractors.find(c=>c.id===id);
+let cfilt = {q:"", trade:"", status:""};
+let cm = null; // contractor modal state {contacts:[], quotes:[]}
+
+const telLink = (n, label) => demo() ? `<span class="v">${esc(label||n)}</span>` : `<a class="v" href="tel:${esc(String(n).replace(/[^\d+]/g,""))}">${esc(label||n)}</a>`;
+const mailLink = e => demo() ? `<span class="v">${esc(e)}</span>` : `<a class="v" href="mailto:${esc(e)}">${esc(e)}</a>`;
+
+function viewContractors(){
+  const q = cfilt.q.trim().toLowerCase();
+  let list = S.contractors.slice().sort((a,b)=>a.company.localeCompare(b.company));
+  if(cfilt.trade) list = list.filter(c=>c.trade===cfilt.trade);
+  if(cfilt.status) list = list.filter(c=>c.status===cfilt.status);
+  if(q) list = list.filter(c => [c.company, c.trade, c.phone, c.email, c.notes, ...(c.contacts||[]).flatMap(p=>[p.name,p.phone,p.email])].join(" ").toLowerCase().includes(q));
+  const cards = list.map(c => {
+    const main = (c.contacts||[])[0];
+    const qs = c.quotes||[]; const pend = qs.filter(x=>x.status==="pending");
+    const lastQ = qs.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
+    const tasks = S.tasks.filter(t=>t.contractorId===c.id && t.status!=="done");
+    return `<article class="ctr ${c.status==="avoid"?"avoid":""}">
+      <div class="ctr-head"><div style="min-width:0"><h3>${esc(c.company)}${exPill(c)}</h3><div class="meta">${esc(c.trade||"")}${main?` · ${esc(main.name)}${main.role?` (${esc(main.role)})`:""}`:""}</div></div><span class="pill ${cStatusCls(c.status)}">${cStatusLabel(c.status)}</span></div>
+      <div class="ctr-contact">${c.phone?`<div class="kv"><small>Phone</small>${telLink(c.phone)}</div>`:""}${c.email?`<div class="kv"><small>Email</small>${mailLink(c.email)}</div>`:""}${!c.phone && main && main.phone ? `<div class="kv"><small>Phone</small>${telLink(main.phone)}</div>`:""}</div>
+      <div class="meta ctr-stats"><span>${qs.length} quote${qs.length===1?"":"s"}${pend.length?` · <b>${pend.length} pending</b>`:""}</span>${lastQ?`<span>Last quote <span class="date">${fmt(lastQ.date)}</span>${lastQ.amount!==""?` · ${money(lastQ.amount)}`:""}</span>`:""}${tasks.length?`<span>${tasks.length} open task${tasks.length===1?"":"s"}</span>`:""}${(c.files||[]).length?`<span>${clip}${c.files.length}</span>`:""}</div>
+      <div class="ctr-acts"><button class="small" data-act="edit-contractor" data-id="${c.id}">Open</button>${c.phone?`<button class="small" data-act="copy" data-text="${esc(c.phone)}">Copy phone</button>`:""}${c.email?`<button class="small" data-act="copy" data-text="${esc(c.email)}">Copy email</button>`:""}</div>
+    </article>`;
+  }).join("");
+  return `<div class="section-head"><div><h2>Contractors</h2><p class="sub">Trades we've used or are getting quotes from, with their contacts, quotes and documents.</p></div>${ro()?"":`<button class="primary" data-act="new-contractor">Add contractor</button>`}</div>
+  <div class="filters">
+    <input id="cSearch" type="search" placeholder="Search name, contact, phone" value="${esc(cfilt.q)}" aria-label="Search contractors">
+    <select id="cTradeF" aria-label="Trade"><option value="">All trades</option>${opts(TRADES.map(t=>[t,t]), cfilt.trade)}</select>
+    <select id="cStatusF" aria-label="Status"><option value="">Any status</option>${opts(C_STATUS, cfilt.status)}</select>
+  </div>
+  ${!S.contractors.length ? `<div class="empty">No contractors yet. Use <b>Add contractor</b> for each trade you've used or asked for a quote.</div>` : list.length ? `<div class="ctr-grid">${cards}</div>` : `<div class="empty">No contractors match.</div>`}`;
+}
+
+function contactRowsHtml(){
+  return cm.contacts.map((p,i)=>`<div class="pc-row">
+    <input id="pcName${i}" data-pc="${i}" data-k="name" value="${esc(p.name)}" placeholder="Name" aria-label="Contact name">
+    <input id="pcRole${i}" data-pc="${i}" data-k="role" value="${esc(p.role)}" placeholder="Role (e.g. Estimator)" aria-label="Role">
+    <input id="pcPhone${i}" data-pc="${i}" data-k="phone" value="${esc(p.phone)}" placeholder="Phone" aria-label="Phone">
+    <input id="pcEmail${i}" data-pc="${i}" data-k="email" type="email" value="${esc(p.email)}" placeholder="Email" aria-label="Email">
+    <button type="button" class="small" data-act="rm-pc" data-i="${i}" aria-label="Remove contact">✕</button></div>`).join("") || `<p class="sub" style="margin:0;font-size:13px">No contacts yet.</p>`;
+}
+function quoteRowsHtml(){
+  const fileOf = q => q.fileId && mf ? mf.files.find(f=>f.id===q.fileId) : null;
+  const rows = cm.quotes.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(q => { const f = fileOf(q); const t = q.taskId ? S.tasks.find(x=>x.id===q.taskId) : null; return `<div class="q-row">
+      <span class="date">${fmt(q.date)}</span>
+      <div class="fmain"><b>${q.amount!==""?money(q.amount):"No amount"}</b><span class="meta">${esc(q.description||"")}${t?` · task: ${esc(t.title)}`:""}${f?` · <a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.name)}</a>`:""}</span></div>
+      <select data-qid="${q.id}" class="q-status" aria-label="Quote status">${opts(Q_STATUS, q.status)}</select>
+      <button type="button" class="small" data-act="rm-quote" data-qid="${q.id}" aria-label="Remove quote">✕</button></div>`; }).join("");
+  return rows || `<p class="sub" style="margin:0;font-size:13px">No quotes recorded yet.</p>`;
+}
+function refreshCm(){ const a = $("#pcList"); if(a) a.innerHTML = contactRowsHtml(); const b = $("#qList"); if(b) b.innerHTML = quoteRowsHtml(); }
+
+function contractorModal(c){
+  const isNew = !c; c = c || {status:"quoting", trade:"", contacts:[], quotes:[]};
+  cm = {contacts:(c.contacts||[]).map(x=>({...x})), quotes:(c.quotes||[]).map(x=>({...x}))};
+  if(isNew && !cm.contacts.length) cm.contacts.push({name:"",role:"",phone:"",email:""});
+  mf = {coll:"contractors", taskId: isNew ? uid() : c.id, isNew, files:(c.files||[]).map(f=>({...f})), uploads:[]};
+  const tasks = isNew ? [] : S.tasks.filter(t=>t.contractorId===c.id);
+  openModal(`<h2>${isNew?"Add contractor":esc(c.company)}</h2>
+  <form class="form" id="ctrForm">
+    <label class="full">Company / contractor name<input id="ctCompany" name="company" required value="${esc(c.company)}"></label>
+    <label>Trade<select id="ctTrade" name="trade"><option value="">Choose</option>${opts(TRADES.map(t=>[t,t]), c.trade)}</select></label>
+    <label>Status<select id="ctStatus" name="status">${opts(C_STATUS, c.status)}</select></label>
+    <label>Main phone<input id="ctPhone" name="phone" value="${esc(c.phone)}" inputmode="tel"></label>
+    <label>Main email<input id="ctEmail" name="email" type="email" value="${esc(c.email)}"></label>
+    <label>Website<input id="ctWeb" name="website" value="${esc(c.website)}" placeholder="optional"></label>
+    <label>Insurance expires<input id="ctIns" type="date" name="insuranceExpires" value="${esc(c.insuranceExpires||"")}"></label>
+    <label class="check full"><input type="checkbox" id="ctWsbc" name="wsbc" ${c.wsbc?"checked":""}> WorkSafeBC clearance letter on file</label>
+    <div class="full sub-block"><div class="attach-head"><b>Contacts</b><button type="button" class="small" data-act="add-pc">Add contact</button></div><div id="pcList" class="pc-list">${contactRowsHtml()}</div></div>
+    <div class="full sub-block"><div class="attach-head"><b>Quotes</b></div><div id="qList" class="q-list">${quoteRowsHtml()}</div>
+      <details class="q-add"><summary>Add a quote</summary>
+        <div class="q-form">
+          <label>Date<input id="qDate" type="date" value="${today()}"></label>
+          <label>Amount (CAD)<input id="qAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="4200"></label>
+          <label class="full">What it's for<input id="qDesc" placeholder="e.g. Replace parkade gate motor and controller"></label>
+          <label>Related task<select id="qTask"><option value="">None</option>${opts(S.tasks.filter(t=>t.status!=="done").map(t=>[t.id,t.title]),"")}</select></label>
+          <label>Quote file (optional)<input id="qFile" type="file"></label>
+          <div class="full" style="display:flex;justify-content:flex-end"><button type="button" class="small primary" data-act="add-quote">Add quote</button></div>
+        </div>
+      </details>
+    </div>
+    ${attachSection()}
+    <label class="full">Notes<textarea id="ctNotes" name="notes" placeholder="Work they've done for us, how they were to deal with">${esc(c.notes)}</textarea></label>
+    ${tasks.length ? `<div class="full"><small class="sub">Tasks with this contractor: ${tasks.map(t=>`${esc(t.title)} (${statusLabel(t.status)})`).join("; ")}</small></div>` : ""}
+  </form>
+  <div class="modal-acts"><div>${isNew?"":deleteControl("contractors", c.id)}</div><div><button type="button" data-act="close">Cancel</button><button type="button" class="primary" data-act="save-contractor" data-id="${isNew?"":c.id}">Save</button></div></div>`, m => {
+    renderFileList(); wireFileDrop(m);
+    m.addEventListener("input", ev => { const i = ev.target.dataset.pc; if(i !== undefined) cm.contacts[+i][ev.target.dataset.k] = ev.target.value; });
+    m.addEventListener("change", ev => { if(ev.target.matches(".q-status")){ const q = cm.quotes.find(x=>x.id===ev.target.dataset.qid); if(q) q.status = ev.target.value; } });
+  });
+}
+
 /* ---------- comments on tasks ---------- */
 const COMMENT_KINDS = [["comment","Comment"],["question","Question"],["update","Status update"]];
 const nowIso = () => new Date().toISOString();
@@ -1467,6 +1607,44 @@ document.addEventListener("click", async ev => {
     case "new-pm-task": taskModal(null, {ownerId:"pm", status:"waiting"}); break;
     case "contact-for-task": { const t = S.tasks.find(x=>x.id===id); contactModal(null, {taskId:id, subject:t ? t.title : ""}); break; }
     case "new-vote": voteModal(); break;
+    case "new-contractor": contractorModal(); break;
+    case "edit-contractor": contractorModal(contractor(id)); break;
+    case "add-pc": cm.contacts.push({name:"",role:"",phone:"",email:""}); refreshCm(); $(`#pcName${cm.contacts.length-1}`).focus(); break;
+    case "rm-pc": cm.contacts.splice(+b.dataset.i, 1); refreshCm(); break;
+    case "rm-quote": cm.quotes = cm.quotes.filter(q=>q.id!==b.dataset.qid); refreshCm(); break;
+    case "add-quote": {
+      const amt = $("#qAmount").value, desc = $("#qDesc").value.trim(), file = $("#qFile").files[0];
+      if(!amt && !desc && !file){ toast("Enter an amount, a description or a file."); $("#qAmount").focus(); break; }
+      const q = {id:uid(), date:$("#qDate").value || today(), amount: amt === "" ? "" : +amt, description:desc, status:"pending", taskId:$("#qTask").value, fileId:""};
+      b.disabled = true;
+      if(file){ const [meta] = await addFiles([file], "Quote"); if(meta){ q.fileId = meta.id; if(!q.description) q.description = ""; } }
+      b.disabled = false;
+      cm.quotes.push(q); refreshCm();
+      ["qAmount","qDesc"].forEach(x=>$("#"+x).value=""); $("#qFile").value = ""; $("#qTask").value = ""; $(".q-add").open = false;
+      toast("Quote added. Save to keep it.");
+      break;
+    }
+    case "save-contractor": {
+      const f = $("#ctrForm"); if(!f.reportValidity()) return;
+      if(mf && mf.uploads.some(u=>!u.error)){ toast("Wait for uploads to finish"); return; }
+      const d = formData(f); d.wsbc = $("#ctWsbc").checked;
+      const prev = id ? clean(contractor(id)) : {createdAt: today(), createdBy: myMemberId()};
+      const prevQ = new Set((prev.quotes||[]).map(q=>q.id+":"+q.status));
+      const contacts = cm.contacts.map(p=>({name:(p.name||"").trim(), role:(p.role||"").trim(), phone:(p.phone||"").trim(), email:(p.email||"").trim()})).filter(p=>p.name||p.phone||p.email);
+      const cid = id || mf.taskId;
+      const doc = {...prev, ...d, company:d.company.trim(), contacts, quotes:cm.quotes, files: mf.files};
+      if(await store.set("contractors", cid, doc)){
+        mf = null; cm = null; closeModal(); toast(id ? "Contractor saved" : "Contractor added");
+        if(!id) logActivity({type:"contractor", text:`added ${doc.company}${doc.trade?` (${doc.trade})`:""} to contractors`});
+        for(const q of doc.quotes){
+          if(prevQ.has(q.id+":"+q.status)) continue;
+          const isNewQ = !(prev.quotes||[]).some(x=>x.id===q.id);
+          if(isNewQ) logActivity({type:"contractor", text:`recorded a ${money(q.amount)||""} quote from ${doc.company}${q.description?`: ${q.description}`:""}`.replace("a  quote","a quote"), taskId:q.taskId||undefined});
+          else if(q.status !== "pending") logActivity({type:"contractor", text:`marked the ${money(q.amount)||""} quote from ${doc.company} as ${q.status}`.replace("the  quote","the quote"), taskId:q.taskId||undefined});
+        }
+      }
+      break;
+    }
     case "save-vote": {
       const f = $("#voteForm"); if(!f.reportValidity()) return;
       const d = formData(f);
@@ -1636,6 +1814,7 @@ document.addEventListener("keydown", ev => {
   if((ev.key==="Enter"||ev.key===" ") && ev.target.matches(".card[data-act]")){ ev.preventDefault(); ev.target.click(); }
 });
 document.addEventListener("input", ev => {
+  if(ev.target.id === "cSearch"){ const pos = ev.target.selectionStart; cfilt.q = ev.target.value; render(); const el = $("#cSearch"); if(el){ el.focus(); el.setSelectionRange(pos,pos); } return; }
   const i = ev.target.dataset && ev.target.dataset.rv; if(i === undefined || !mins) return;
   const k = ev.target.dataset.k; mins.items[+i][k] = k === "on" ? ev.target.checked : ev.target.value;
   if(k === "on"){ ev.target.closest(".rv").classList.toggle("off", !ev.target.checked); const n = mins.items.filter(x=>x.on).length; const btn = $('[data-act="create-from-minutes"]'); btn.textContent = `Create ${n} task${n===1?"":"s"}`; btn.disabled = !n; }
@@ -1643,6 +1822,8 @@ document.addEventListener("input", ev => {
 document.addEventListener("change", ev => {
   if(ev.target.dataset && ev.target.dataset.rv !== undefined){ const k = ev.target.dataset.k; if(k !== "on" && mins) mins.items[+ev.target.dataset.rv][k] = ev.target.value; return; }
   const id = ev.target.id;
+  if(id==="cTradeF"){ cfilt.trade = ev.target.value; render(); return; }
+  if(id==="cStatusF"){ cfilt.status = ev.target.value; render(); return; }
   if(id==="fOwner") filt.owner = ev.target.value;
   else if(id==="fCat") filt.cat = ev.target.value;
   else if(id==="fLayout") filt.layout = ev.target.value;
