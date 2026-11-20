@@ -703,6 +703,7 @@ const ro = () => S.readOnly;
 
 function viewOverview(){
   const lateFU = S.contacts.filter(fuLate), lateT = S.tasks.filter(taskLate);
+  const latePmT = lateT.filter(pmRelated);
   const openT = S.tasks.filter(t=>t.status!=="done");
   const orph = S.tasks.filter(orphaned);
   const soonFU = S.contacts.filter(c=>fuOpen(c) && !fuLate(c) && daysBetween(today(),c.followUpDate)<=7);
@@ -719,7 +720,7 @@ function viewOverview(){
   const max = Math.max(1, ...counts.map(c=>c.n));
   return `
   <div class="tiles">
-    <div class="tile ${lateFU.length?"late":""}"><b>${lateFU.length}</b><span>PM follow-ups overdue</span></div>
+    <div class="tile ${lateFU.length+latePmT.length?"late":""}"><b>${lateFU.length+latePmT.length}</b><span>Property Manager items overdue${lateFU.length && latePmT.length?` <small>(${lateFU.length} follow-up${lateFU.length===1?"":"s"}, ${latePmT.length} task${latePmT.length===1?"":"s"})</small>`:""}</span></div>
     <div class="tile ${lateT.length?"late":""}"><b>${lateT.length}</b><span>Tasks overdue</span></div>
     <div class="tile"><b>${openT.length}</b><span>Open tasks</span></div>
     <div class="tile"><b>${act.length}</b><span>Council members</span></div>
