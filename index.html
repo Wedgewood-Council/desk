@@ -735,7 +735,7 @@ function viewOverview(){
     <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
       ${orph.length ? `<section class="panel"><h3>Tasks without an owner (${orph.length})</h3><p class="sub" style="margin-top:-6px;margin-bottom:10px">Unassigned, or the owner has left council.</p><div class="list">${orph.map(t=>`<div class="row"><div><div class="title">${esc(t.title)}</div><div class="meta"><span>${esc(memberName(t.ownerId))}</span><span class="date">${fmt(t.due)}</span></div></div><div class="acts">${ro()?"":`<button class="small" data-act="edit-task" data-id="${t.id}">Assign</button>`}</div></div>`).join("")}</div></section>` : ""}
       <section class="panel">
-        <h3>Open tasks by member</h3><p class="sub" style="margin-top:-6px;margin-bottom:6px">Click a name to see their tasks.</p>
+        <h3>Open Tasks/Votes by Member</h3><p class="sub" style="margin-top:-6px;margin-bottom:6px">Click a name to see their tasks.</p>
         ${counts.length ? `<div class="list">${counts.map(c=>{ const pv = votesAwaiting(c.m.id).length; return `<div class="row clickable" role="button" tabindex="0" data-act="member-tasks" data-id="${c.m.id}" aria-label="Show ${esc(c.m.name)}'s tasks"><div><div class="title">${esc(c.m.name)}${c.m.id===myMemberId()?' <span class="you-tag">(you)</span>':""}${pv?` <span class="pill soon">${pv} vote${pv===1?"":"s"} pending</span>`:""}</div><div class="load"><div class="bar" style="width:${Math.round(c.n/max*100)}%;max-width:140px"></div><span class="meta">${c.n} open${c.late?` · <span style="color:var(--late)">${c.late} late</span>`:""}</span></div></div></div>`; }).join("")}</div>` : `<div class="empty">Add council members to see who's carrying what.</div>`}
       </section>
     </div>
