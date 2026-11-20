@@ -51,7 +51,7 @@ button,.btn{font:inherit;font-weight:500;border:1px solid var(--line);background
 button:hover{border-color:var(--accent)}
 button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
 button.small{padding:4px 10px;font-size:13px}
-button.link{border:none;background:none;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer}
+button.link{font:inherit;text-align:left;border:none;background:none;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer}
 button.danger{color:var(--late);border-color:var(--late)}
 .tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:24px}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
@@ -495,14 +495,8 @@ function demoData(){
   };
 }
 
-async function loadExamples(){
-  const d = demoData(); const b = fdb.batch();
-  d.members.forEach(m => b.set(fdb.collection("members").doc(m.id), clean(m)));
-  d.tasks.forEach(t => b.set(fdb.collection("tasks").doc(t.id), clean(t)));
-  d.contacts.forEach(c => b.set(fdb.collection("contacts").doc(c.id), clean(c)));
-  if(!S.pm.email && !S.pm.phone) b.set(fdb.collection("settings").doc("pm"), d.pm);
-  try { await b.commit(); toast("Example records added"); } catch(e){ handleWriteError(e); }
-}
+const exampleColls = ["comments","votes","contractors","contacts","tasks","members"];
+const hasExamples = () => exampleColls.some(c => S[c].some(x=>x.example)) || S.pm.example;
 
 /* ---------- sign-in screen ---------- */
 let signUpMode = false;
@@ -657,9 +651,8 @@ function renderNotices(){
   if(S.slow) n.push(`<div class="notice warn"><span>The shared records are taking a while to load. What you see may be out of date.</span></div>`);
   if(S.dbError) n.push(`<div class="notice warn"><span>Lost the connection to the shared records. Reload the page to reconnect.</span></div>`);
   if(S.mode==="live" && Object.keys(S.loaded).length===4 && !S.tasks.length && !S.contacts.length && !(S.pm.email||S.pm.phone))
-    n.push(`<div class="notice"><span><b>Welcome.</b> The tracker is empty. Load a few example records to see how it works, then remove them when you add the real council.</span><button class="small" data-act="load-examples">Load example records</button></div>`);
-  const hasEx = [...S.members,...S.tasks,...S.contacts].some(x=>x.example) || S.pm.example;
-  if(hasEx && !demo()) n.push(`<div class="notice"><span>Some records are <span class="pill ex">Example</span> data to show how it works. Remove them when you're ready to add the real council.</span><button class="small" data-act="clear-examples">Remove example data</button></div>`);
+    n.push(`<div class="notice"><span><b>Welcome.</b> The tracker is empty. Start by adding council members on the Members tab, then add tasks and log Property Manager contacts as they happen.</span></div>`);
+  if(hasExamples() && !demo()) n.push(`<div class="notice"><span>Some records are <span class="pill ex">Example</span> data to show how it works. Remove them when you're ready to add the real council.</span><span style="display:flex;gap:6px;flex-wrap:wrap"><button class="small" data-act="clear-examples">Remove example data</button></span></div>`);
   $("#notices").innerHTML = n.join("");
 }
 
@@ -749,7 +742,7 @@ function contactRow(c, compact){
       <div class="meta"><span class="method">${c.method==="phone"?"PHONE":"EMAIL"}</span><span class="date">${fmt(c.date)}</span><span>by ${esc(memberName(c.byId))}</span>${c.ref?`<span class="date">Ref ${esc(c.ref)}</span>`:""}
         ${chases(c) ? `<span class="pill">Chased ${chases(c)}×</span>` : ""}
         ${c.followUpDate ? (c.followUpDone ? `<span class="pill ok">Answered${c.answeredOn?` ${fmt(c.answeredOn)}`:""}</span>` : `<span>Follow up by <span class="date">${fmt(c.followUpDate)}</span></span>${ds?`<span class="pill ${ds.cls}">${ds.text}</span>`:""}`) : ""}
-        ${task && !compact ? `<span>Task: ${esc(task.title)}</span>` : ""}
+        ${task && !compact ? `<span>Task: <button type="button" class="link" data-act="edit-task" data-id="${task.id}" title="Open this task">${esc(task.title)}</button></span>` : ""}
       </div>
     </div>
     <div class="acts">${ro()?"":`
@@ -857,7 +850,7 @@ function taskModal(t, prefill){
     <label>Category<select id="tCat" name="category"><option value="">—</option>${opts(CATEGORIES.map(c=>[c,c]), t.category)}</select></label>
     ${S.contractors.length ? `<label class="full">Contractor (optional)<select id="tCtr" name="contractorId"><option value="">None</option>${opts(S.contractors.slice().sort((a,b)=>a.company.localeCompare(b.company)).map(c=>[c.id, `${c.company}${c.trade?` · ${c.trade}`:""}`]), t.contractorId||"")}</select></label>` : ""}
     <label class="full">Notes<span class="mention-wrap"><textarea id="tNotes" name="notes" data-mentions placeholder="Details. Type @ to tag a member.">${esc(t.notes)}</textarea><span class="mention-pop" role="listbox" hidden></span></span></label>
-    ${related.length ? `<div class="full"><small class="sub">PM contacts about this task: ${related.map(c=>`${esc(c.subject)} (${fmt(c.date)})`).join("; ")}</small></div>`:""}
+    ${related.length ? `<div class="full"><small class="sub">PM contacts about this task: ${related.map(c=>`<button type="button" class="link" data-act="edit-contact" data-id="${c.id}">${esc(c.subject)}</button> (${fmt(c.date)})`).join("; ")}</small></div>`:""}
     ${attachSection()}
     ${commentSection()}
   </form>
@@ -1798,10 +1791,10 @@ document.addEventListener("click", async ev => {
       if(await store.set("settings", "pm", d)){ closeModal(); toast("Property Manager details saved"); }
       break;
     }
-    case "load-examples": b.disabled = true; await loadExamples(); break;
     case "clear-examples": {
       b.disabled = true;
-      for(const coll of ["contacts","tasks","members"]) for(const r of S[coll].filter(x=>x.example)) await store.del(coll, r.id);
+      for(const r of S.ballots.filter(x=>S.votes.some(v=>v.example && v.id===x.voteId) && x.memberId===myMemberId())) { try { await store.del("ballots", r.id); } catch(e){} }
+      for(const coll of exampleColls) for(const r of S[coll].filter(x=>x.example)) { try { await store.del(coll, r.id); } catch(e){ console.error(e); } }
       if(S.pm.example) await store.set("settings","pm",{});
       toast("Example data removed");
       break;
