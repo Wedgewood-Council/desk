@@ -99,10 +99,10 @@ td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
 .scrim{position:fixed;inset:0;background:rgba(10,20,18,.45);z-index:20;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:calc(env(safe-area-inset-top,0px) + 40px) max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px))}
 .modal{background:var(--surface);border-radius:10px;width:100%;max-width:520px;padding:20px;border:1px solid var(--line)}
 .modal h2{margin-bottom:14px}
-.form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
 .form .full{grid-column:1/-1}
 .form label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:500;color:var(--muted)}
-.form input,.form select,.form textarea{font:inherit;font-size:15px;color:var(--fg);padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+.form input,.form select,.form textarea{font:inherit;font-size:15px;color:var(--fg);padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);min-width:0;max-width:100%}
 .form textarea{min-height:80px;resize:vertical}
 .form .check{flex-direction:row;align-items:center;gap:8px;color:var(--fg)}
 .modal-acts{display:flex;gap:8px;justify-content:space-between;margin-top:18px;flex-wrap:wrap}
@@ -210,7 +210,7 @@ a.btn{text-decoration:none}
 .filters input[type=search]{min-width:220px;flex:1 1 220px}
 .sub-block{border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px}
 .pc-list,.q-list{display:flex;flex-direction:column;gap:8px}
-.pc-row{display:grid;grid-template-columns:1.1fr 1fr 1fr 1.3fr auto;gap:6px}
+.pc-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr) auto;gap:6px}
 .pc-row input{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);min-width:0}
 .q-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px;align-items:center;font-size:14px}
 .q-row .fmain{display:flex;flex-direction:column;min-width:0}
@@ -218,9 +218,9 @@ a.btn{text-decoration:none}
 .q-row .meta a{color:var(--accent)}
 .q-row select{font:inherit;font-size:12px;padding:3px 4px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
 .q-add summary{cursor:pointer;color:var(--accent);font-weight:500;font-size:14px}
-.q-form{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.q-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:10px}
 .q-form .full{grid-column:1/-1}
-@media (max-width:520px){.pc-row{grid-template-columns:1fr 1fr}.pc-row button{grid-column:2;justify-self:end}.q-form{grid-template-columns:1fr}.q-row{grid-template-columns:auto minmax(0,1fr)}.q-row select,.q-row button{grid-column:2}}
+@media (max-width:520px){.pc-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.pc-row button{grid-column:2;justify-self:end}.q-form{grid-template-columns:minmax(0,1fr)}.q-row{grid-template-columns:auto minmax(0,1fr)}.q-row select,.q-row button{grid-column:2}}
 .toast-act{margin-left:14px;background:none;border:none;color:inherit;text-decoration:underline;font-weight:600;padding:0;cursor:pointer}
 .theme-btn{display:inline-flex;align-items:center;gap:6px}
 .history{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:14px}
