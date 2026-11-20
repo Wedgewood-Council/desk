@@ -1,0 +1,1470 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Wedgewood Council Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Manrope:wght@600;700;800&display=swap">
+<style>
+/* Layout: a council "desk" — sticky header with four tabs; Overview leads with what is late, then lists. */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --sunk:#e8edeb; --line:#d3dbd8;
+  --fg:#17211f; --muted:#5a6966;
+  --accent:#1d5c56; --accent-fg:#ffffff; --accent-soft:#d9ebe8;
+  --late:#b3261e; --late-soft:#fbe4e1; --soon:#8a5a00; --soon-soft:#fbefd6; --ok:#2f6b34; --ok-soft:#dff0df;
+  --display:"Manrope",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111816; --surface:#18211f; --sunk:#202b28; --line:#2e3c39; --fg:#e4ecea; --muted:#9aaba7;
+  --accent:#6cc0b5; --accent-fg:#0b1513; --accent-soft:#1f3a36;
+  --late:#ff8a80; --late-soft:#3d1d1b; --soon:#f0c060; --soon-soft:#3a2f14; --ok:#8fd394; --ok-soft:#1d3320; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111816; --surface:#18211f; --sunk:#202b28; --line:#2e3c39; --fg:#e4ecea; --muted:#9aaba7;
+  --accent:#6cc0b5; --accent-fg:#0b1513; --accent-soft:#1f3a36;
+  --late:#ff8a80; --late-soft:#3d1d1b; --soon:#f0c060; --soon-soft:#3a2f14; --ok:#8fd394; --ok-soft:#1d3320; color-scheme:dark}
+*{box-sizing:border-box}
+html{color-scheme:light}
+[hidden]{display:none!important}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1040px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:14px 8px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column}
+.brand h1{font-family:var(--display);font-size:20px;font-weight:800;margin:0;letter-spacing:-.01em}
+.brand span{font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+nav{display:flex;gap:4px;overflow-x:auto;padding-bottom:0}
+nav a{padding:10px 14px;color:var(--muted);text-decoration:none;font-weight:500;border-bottom:3px solid transparent;white-space:nowrap}
+nav a[aria-current="page"]{color:var(--fg);border-bottom-color:var(--accent)}
+nav a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.badge-n{display:inline-block;min-width:20px;padding:0 6px;margin-left:6px;border-radius:10px;background:var(--late);color:#fff;font-size:12px;text-align:center;font-variant-numeric:tabular-nums}
+main{padding-block:20px 60px}
+.notice{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 14px;border-radius:8px;background:var(--accent-soft);margin-bottom:18px;font-size:14px}
+.notice.warn{background:var(--soon-soft)}
+h2{font-family:var(--display);font-size:22px;margin:0;text-wrap:balance;letter-spacing:-.01em}
+h3{font-family:var(--display);font-size:16px;margin:0 0 10px}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.sub{color:var(--muted);margin:4px 0 0;font-size:14px}
+button,.btn{font:inherit;font-weight:500;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 14px;border-radius:6px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+button.small{padding:4px 10px;font-size:13px}
+button.link{border:none;background:none;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer}
+button.danger{color:var(--late);border-color:var(--late)}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:24px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.tile b{display:block;font-family:var(--display);font-size:30px;line-height:1.1;font-variant-numeric:tabular-nums}
+.tile span{font-size:13px;color:var(--muted)}
+.tile.late b{color:var(--late)}
+.grid2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:20px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+.list{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;padding:12px 0;border-top:1px solid var(--line);align-items:start}
+.row:first-child{border-top:none;padding-top:0}
+.row .title{font-weight:600;overflow-wrap:anywhere}
+.row .meta{font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 12px}
+.row .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.row .notes{grid-column:1/-1;font-size:14px;color:var(--fg);white-space:pre-wrap;overflow-wrap:anywhere}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:1px 8px;border-radius:10px;background:var(--sunk);color:var(--muted);white-space:nowrap}
+.pill.late{background:var(--late-soft);color:var(--late)}
+.pill.soon{background:var(--soon-soft);color:var(--soon)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.acc{background:var(--accent-soft);color:var(--accent)}
+.pill.ex{background:transparent;border:1px dashed var(--line)}
+.date{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.filters select,.filters input{font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg)}
+.empty{padding:24px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:8px}
+.board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.col{background:var(--sunk);border-radius:8px;padding:10px;min-width:0}
+.col h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:flex;justify-content:space-between}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px;margin-top:8px;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+.card:hover{border-color:var(--accent)}
+.card .t{font-weight:600;font-size:14px;overflow-wrap:anywhere}
+.card .m{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted)}
+.pm-card{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center}
+.pm-card .v{font-family:var(--mono);font-size:14px;user-select:all}
+.kv{display:flex;flex-direction:column}
+.kv small{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.method{font-family:var(--mono);font-size:12px;padding:1px 6px;border-radius:4px;border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+.tscroll{overflow-x:auto}
+.load{display:flex;align-items:center;gap:10px}
+.bar{height:8px;border-radius:4px;background:var(--accent);min-width:2px}
+/* modal */
+.scrim{position:fixed;inset:0;background:rgba(10,20,18,.45);z-index:20;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:calc(env(safe-area-inset-top,0px) + 40px) max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px))}
+.modal{background:var(--surface);border-radius:10px;width:100%;max-width:520px;padding:20px;border:1px solid var(--line)}
+.modal h2{margin-bottom:14px}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form .full{grid-column:1/-1}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:500;color:var(--muted)}
+.form input,.form select,.form textarea{font:inherit;font-size:15px;color:var(--fg);padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+.form textarea{min-height:80px;resize:vertical}
+.form .check{flex-direction:row;align-items:center;gap:8px;color:var(--fg)}
+.modal-acts{display:flex;gap:8px;justify-content:space-between;margin-top:18px;flex-wrap:wrap}
+.modal-acts div{display:flex;gap:8px}
+pre.draft{white-space:pre-wrap;font-family:var(--body);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:12px;font-size:14px;max-height:50vh;overflow:auto}
+.attach{border:1px dashed var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.attach.drag{border-color:var(--accent);background:var(--accent-soft)}
+.attach-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.btn.small{padding:4px 10px;font-size:13px;color:var(--fg);display:inline-block}
+.frow{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:8px;align-items:center;font-size:14px}
+.frow .fmain{display:flex;flex-direction:column;min-width:0}
+.frow .fmain a{color:var(--accent);overflow-wrap:anywhere}
+.frow .meta{font-size:12px;color:var(--muted)}
+.ficon{font-family:var(--mono);font-size:10px;font-weight:500;padding:4px 5px;border-radius:4px;background:var(--sunk);color:var(--muted);min-width:34px;text-align:center}
+.frow select{font:inherit;font-size:12px;padding:3px 4px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
+.modal.wide{max-width:760px}
+.review{display:flex;flex-direction:column;gap:10px;max-height:60vh;overflow-y:auto;padding-right:4px}
+.rv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.rv.off{opacity:.55}
+.rv input[type=checkbox]{width:18px;height:18px;margin-top:8px;accent-color:var(--accent)}
+.rv-main{display:flex;flex-direction:column;gap:6px;min-width:0}
+.rv-title{font:inherit;font-weight:600;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg);width:100%}
+.rv-fields{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.rv-fields select,.rv-fields input{font:inherit;font-size:13px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg)}
+.rv-src{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+@media (max-width:520px){.frow{grid-template-columns:auto minmax(0,1fr)}.frow select,.frow>span:last-child{grid-column:2}}
+.bell-wrap{position:relative}
+.bell{position:relative;display:inline-flex;align-items:center;padding:6px 9px}
+.bell-count{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--late);color:#fff;font-size:11px;font-weight:600;line-height:18px;text-align:center;font-variant-numeric:tabular-nums}
+.bell-panel{position:absolute;right:0;top:calc(100% + 8px);width:min(400px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(10,20,18,.18);z-index:15;display:flex;flex-direction:column;max-height:min(70vh,560px)}
+.np-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px 6px}
+.np-tabs{display:flex;gap:4px;padding:4px 10px 8px;border-bottom:1px solid var(--line)}
+.np-tabs button{font-size:13px;padding:4px 10px;border-radius:14px;border:1px solid transparent;background:none;color:var(--muted)}
+.np-tabs button[aria-selected="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.np-list{overflow-y:auto}
+.np-item{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;border-bottom:1px solid var(--line)}
+.np-item:last-child{border-bottom:none}
+.np-main{display:grid;grid-template-columns:10px minmax(0,1fr);gap:10px;text-align:left;border:none;border-radius:0;background:none;padding:10px 4px 10px 14px;font-weight:400;font-size:14px;color:var(--muted);width:100%}
+.np-item.unread .np-main{color:var(--fg)}
+.np-item.unread{background:color-mix(in srgb, var(--accent-soft) 45%, transparent)}
+.np-dot{width:8px;height:8px;border-radius:50%;margin-top:6px;background:transparent}
+.np-item.unread .np-dot{background:var(--accent)}
+.np-item.late.unread .np-dot{background:var(--late)}
+.np-text{overflow-wrap:anywhere}
+.np-meta{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.np-toggle{border:none;background:none;color:var(--accent);padding:10px 14px;font-size:12px}
+.discuss{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:12px}
+.comments{display:flex;flex-direction:column;gap:10px;max-height:260px;overflow-y:auto}
+.cm{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px}
+.cm-head{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;margin-bottom:2px;font-size:13px}
+.cm-head .meta{color:var(--muted);font-size:12px}
+.cm-acts{margin-left:auto;font-size:12px}
+.cm-body{white-space:pre-wrap;overflow-wrap:anywhere}
+.composer{display:flex;flex-direction:column;gap:6px}
+.composer textarea{min-height:60px}
+.composer-row{display:flex;justify-content:space-between;gap:8px}
+.composer-row select{font-size:13px;padding:4px 6px}
+.mention-wrap{position:relative;display:block}
+.mention-wrap textarea{width:100%}
+.mention-pop{position:absolute;left:0;top:100%;margin-top:4px;z-index:25;min-width:220px;max-width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(10,20,18,.18);display:flex;flex-direction:column;padding:4px}
+.mention-pop button{display:flex;justify-content:space-between;gap:12px;border:none;background:none;text-align:left;padding:6px 10px;border-radius:6px;font-size:14px;color:var(--fg)}
+.mention-pop button span{color:var(--muted);font-size:12px}
+.mention-pop button[aria-selected="true"]{background:var(--accent-soft)}
+.mention{color:var(--accent);font-weight:600;background:var(--accent-soft);border-radius:4px;padding:0 3px}
+.mention.me{background:var(--soon-soft);color:var(--soon)}
+.toast-act{margin-left:14px;background:none;border:none;color:inherit;text-decoration:underline;font-weight:600;padding:0;cursor:pointer}
+.theme-btn{display:inline-flex;align-items:center;gap:6px}
+.history{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.history li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 20px);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:6px;z-index:30;font-size:14px}
+.auth{min-height:80vh;display:flex;align-items:center;justify-content:center;padding-block:40px}
+.auth-box{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:28px;width:100%;max-width:400px;display:flex;flex-direction:column;gap:14px}
+.auth-box h1{font-family:var(--display);font-size:22px;margin:0}
+.auth-box .form{grid-template-columns:1fr}
+.gbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:10px}
+.divider{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line)}
+.err{color:var(--late);font-size:14px;margin:0}
+.userchip{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.top-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+@media (max-width:820px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}.board{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.board{grid-template-columns:minmax(0,1fr)}.form{grid-template-columns:1fr}.row{grid-template-columns:minmax(0,1fr)}.row .acts{justify-content:flex-start}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<section class="auth wrap" id="authScreen" hidden>
+  <div class="auth-box">
+    <div class="brand"><span>Wedgewood strata council</span><h1>Council Desk</h1></div>
+    <div id="authMsg"></div>
+    <div id="authForms">
+      <button class="gbtn" id="googleBtn" type="button"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Sign in with Google</button>
+      <div class="divider">or use your email</div>
+      <form class="form" id="emailForm">
+        <label>Email<input id="aEmail" type="email" autocomplete="email" required></label>
+        <label>Password<input id="aPass" type="password" autocomplete="current-password" minlength="8" required></label>
+        <button class="primary" type="submit" id="emailSubmit">Sign in</button>
+      </form>
+      <p class="sub" style="margin:0">
+        <button class="link" type="button" id="toggleMode">First time? Create a password</button> ·
+        <button class="link" type="button" id="resetBtn">Forgot password</button>
+      </p>
+    </div>
+  </div>
+</section>
+<div id="app" hidden>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand"><span>Strata council</span><h1>Wedgewood Council Desk</h1></div>
+      <div class="top-right">
+        <div class="bell-wrap"><button class="small bell" id="bellBtn" type="button" aria-haspopup="true" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5a4.5 4.5 0 0 0-4.5 4.5v2.6L2.2 11h11.6l-1.3-2.4V6A4.5 4.5 0 0 0 8 1.5zM6.3 12.5a1.8 1.8 0 0 0 3.4 0" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg><span class="bell-count" id="bellCount" hidden>0</span></button><div class="bell-panel" id="bellPanel" hidden></div></div>
+        <button class="small theme-btn" id="themeBtn" type="button"></button>
+        <span class="userchip"><span id="whoami"></span><button class="small" id="signOut" type="button">Sign out</button></span>
+        <button class="primary" id="quickAdd">+ Log PM contact</button>
+      </div>
+    </div>
+    <nav id="nav">
+      <a href="#overview" data-view="overview">Overview</a>
+      <a href="#tasks" data-view="tasks">Tasks</a>
+      <a href="#pm" data-view="pm">Property manager</a>
+      <a href="#members" data-view="members">Members</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+  <div id="notices"></div>
+  <div id="view"><div class="empty">Loading council records…</div></div>
+</main>
+<div id="modalRoot"></div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+<script src="config.js"></script>
+
+<script>
+(() => {
+const STATUSES = [["todo","To do"],["doing","In progress"],["waiting","Waiting on PM"],["done","Done"]];
+const CATEGORIES = ["Maintenance","Repairs","Landscaping","Finance","Insurance","Bylaws","AGM / meetings","Other"];
+const ROLES = ["President","Vice President","Treasurer","Secretary","Member at large"];
+const S = { ownerEmail:"", members:[], tasks:[], contacts:[], comments:[], activity:[], pm:{}, mode:"loading", readOnly:false, loaded:{} };
+let db = null;
+
+/* ---------- helpers ---------- */
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad = n => String(n).padStart(2,"0");
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const today = () => iso(new Date());
+const addDays = (s, n) => { const d = s ? new Date(s+"T12:00:00") : new Date(); d.setDate(d.getDate()+n); return iso(d); };
+const daysBetween = (a, b) => Math.round((new Date(b+"T12:00:00") - new Date(a+"T12:00:00")) / 86400000);
+const fmt = s => { if(!s) return "—"; const d = new Date(s+"T12:00:00"); return d.toLocaleDateString(undefined,{month:"short",day:"numeric",year: d.getFullYear()===new Date().getFullYear()?undefined:"numeric"}); };
+const uid = () => Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
+const member = id => S.members.find(m => m.id === id);
+const memberName = id => { if(id === "pm") return "Property manager"; const m = member(id); if(!m) return "Unassigned"; return m.name + (m.active === false ? " (former)" : ""); };
+const activeMembers = () => S.members.filter(m => m.active !== false).sort((a,b)=>a.name.localeCompare(b.name));
+const statusLabel = k => (STATUSES.find(s=>s[0]===k)||STATUSES[0])[1];
+
+function dueState(date, done){
+  if(done || !date) return null;
+  const d = daysBetween(today(), date);
+  if(d < 0) return {cls:"late", text: `${-d} day${d===-1?"":"s"} overdue`};
+  if(d === 0) return {cls:"soon", text:"Due today"};
+  if(d <= 7) return {cls:"soon", text:`Due in ${d} day${d===1?"":"s"}`};
+  return null;
+}
+const taskLate = t => t.status !== "done" && t.due && t.due < today();
+const fuOpen = c => c.followUpDate && !c.followUpDone;
+const chases = c => (c.history||[]).filter(h=>h.type==="chase").length;
+const fuLate = c => fuOpen(c) && c.followUpDate < today();
+const orphaned = t => t.status !== "done" && t.ownerId !== "pm" && (!t.ownerId || member(t.ownerId)?.active === false || !member(t.ownerId));
+
+let toastTimer;
+function toast(msg, action){
+  let el=$(".toast"); if(!el){el=document.createElement("div");el.className="toast";el.setAttribute("role","status");document.body.appendChild(el);}
+  el.textContent=msg;
+  if(action){ const b=document.createElement("button"); b.className="toast-act"; b.type="button"; b.textContent=action.label; b.onclick=()=>{ el.remove(); action.fn(); }; el.appendChild(b); }
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.remove(), action ? 7000 : 2600);
+}
+
+/* ---------- Firebase: sign-in and shared database ---------- */
+const CFG = window.COUNCIL_CONFIG || {};
+let fdb = null, auth = null, me = null, unsubs = [];
+const lc = s => String(s||"").trim().toLowerCase();
+
+const demo = () => S.mode === "demo";
+function demoPut(coll, id, data){
+  if(coll === "settings"){ if(id === "ownership") S.ownerEmail = lc(data.ownerEmail); else S.pm = {...data}; return; }
+  if(coll === "access") return;
+  const arr = S[coll]; const i = arr.findIndex(x=>x.id===id); const rec = {...data, id};
+  if(i>=0) arr[i]=rec; else arr.push(rec);
+}
+const store = {
+  async set(coll, id, data){
+    if(demo()){ demoPut(coll, id, data); render(); return true; }
+    try { await fdb.collection(coll).doc(id).set(data); return true; }
+    catch(e){ handleWriteError(e); return false; }
+  },
+  async del(coll, id){
+    if(demo()){
+      if(coll === "tasks") (S.tasks.find(t=>t.id===id)?.files||[]).forEach(f=>files.remove(f));
+      S[coll] = S[coll].filter(x=>x.id!==id); render(); return true;
+    }
+    try {
+      if(coll === "members"){
+        const m = member(id); const b = fdb.batch();
+        b.delete(fdb.collection("members").doc(id));
+        if(m && m.email) b.delete(fdb.collection("access").doc(lc(m.email)));
+        await b.commit();
+      } else {
+        if(coll === "tasks") for(const f of (S.tasks.find(t=>t.id===id)?.files||[])) await files.remove(f);
+        await fdb.collection(coll).doc(id).delete();
+      }
+      return true;
+    } catch(e){ handleWriteError(e); return false; }
+  },
+  /* Several writes that must land together (e.g. a batch of tasks from minutes). */
+  async many(writes){
+    if(demo()){ writes.forEach(w => demoPut(w.coll, w.id, w.data)); render(); return true; }
+    const b = fdb.batch(); writes.forEach(w => b.set(fdb.collection(w.coll).doc(w.id), w.data));
+    try { await b.commit(); return true; } catch(e){ handleWriteError(e); return false; }
+  },
+  /* A member's email is their key to sign in, so saving a member also updates the access list. */
+  async saveMember(id, data, prev){
+    data.email = lc(data.email);
+    if(demo()){ demoPut("members", id, data); render(); return true; }
+    const b = fdb.batch();
+    b.set(fdb.collection("members").doc(id), data);
+    const old = lc(prev && prev.email);
+    if(old && old !== data.email) b.delete(fdb.collection("access").doc(old));
+    if(data.email) b.set(fdb.collection("access").doc(data.email), {active: data.active !== false, memberId: id});
+    try { await b.commit(); return true; } catch(e){ handleWriteError(e); return false; }
+  }
+};
+
+/* ---------- attachments: Firebase Storage, or in-memory files in the preview ---------- */
+const MAX_FILE = 25 * 1024 * 1024;
+const FILE_LABELS = ["Quote","Invoice","Correspondence","Minutes","Photo","Report","Contract","Other"];
+function guessLabel(name){
+  const n = name.toLowerCase();
+  if(/quote|estimate|proposal/.test(n)) return "Quote";
+  if(/invoice|receipt|bill/.test(n)) return "Invoice";
+  if(/minutes|agenda/.test(n)) return "Minutes";
+  if(/\.(jpe?g|png|heic|gif|webp)$/.test(n)) return "Photo";
+  if(/\.(eml|msg)$|email|letter|reply/.test(n)) return "Correspondence";
+  if(/contract|agreement/.test(n)) return "Contract";
+  if(/report|inspection/.test(n)) return "Report";
+  return "Other";
+}
+const fmtSize = b => b < 1024*1024 ? `${Math.max(1,Math.round(b/1024))} KB` : `${(b/1024/1024).toFixed(1)} MB`;
+const files = {
+  async upload(taskId, file, onProgress){
+    const id = uid(); const safe = file.name.replace(/[^\w.\- ]+/g, "_").slice(-120);
+    const meta = {id, name:file.name, size:file.size, type:file.type||"", label:guessLabel(file.name), addedBy: myMemberId(), addedAt: today()};
+    if(demo()){ meta.url = URL.createObjectURL(file); meta.path = ""; onProgress && onProgress(1); return meta; }
+    const path = `tasks/${taskId}/${id}-${safe}`;
+    const task = firebase.storage().ref(path).put(file, {contentType: file.type || "application/octet-stream"});
+    await new Promise((res, rej) => task.on("state_changed", s => onProgress && onProgress(s.bytesTransferred / s.totalBytes), rej, res));
+    meta.path = path; meta.url = await task.snapshot.ref.getDownloadURL();
+    return meta;
+  },
+  async remove(f){
+    if(demo() || !f.path){ if(f.url && f.url.startsWith("blob:")) URL.revokeObjectURL(f.url); return; }
+    try { await firebase.storage().ref(f.path).delete(); } catch(e){ if(e.code !== "storage/object-not-found") throw e; }
+  }
+};
+function myMemberId(){
+  if(demo()) return activeMembers()[0]?.id || "";
+  const m = S.members.find(x => lc(x.email) === lc(me && me.email)); return m ? m.id : "";
+}
+function handleWriteError(e){
+  console.error(e);
+  if(e && e.code === "permission-denied") toast("You don't have permission to make that change.");
+  else toast("That change didn't save. Check your connection and try again.");
+}
+const clean = o => { const r = {...o}; delete r.id; return r; };
+
+function demoData(){
+  const t = today();
+  const m = [
+    {id:"m1",name:"Alex Chen",role:"President",unit:"304",email:"alex@example.com",phone:"",active:true,example:true},
+    {id:"m2",name:"Priya Sandhu",role:"Treasurer",unit:"112",email:"priya@example.com",phone:"",active:true,example:true},
+    {id:"m3",name:"Jordan Blake",role:"Secretary",unit:"508",email:"jordan@example.com",phone:"",active:true,example:true},
+    {id:"m4",name:"Sam Okafor",role:"Member at large",unit:"201",email:"",phone:"",active:true,example:true},
+  ];
+  const hrs = h => new Date(Date.now() - h*3600000).toISOString();
+  return {
+    comments:[
+      {id:"k1",taskId:"t1",byId:"m2",kind:"question",text:"Do we know if the gate motor is still under warranty? Might save us the third quote.",at:hrs(26)},
+      {id:"k2",taskId:"t1",byId:"m3",kind:"update",text:"@Alex Chen PM says warranty expired in 2024. Third quote should arrive next week, can you review it then?",at:hrs(5)},
+    ],
+    activity:[
+      {id:"v1",type:"task",byId:"m3",text:'assigned "Get quotes for parkade gate repair" to Alex Chen',taskId:"t1",forIds:["m1"],at:hrs(30)},
+      {id:"v2",type:"comment",byId:"m2",text:'asked a question on "Get quotes for parkade gate repair": Do we know if the gate motor is still under warranty?',taskId:"t1",forIds:["m1"],at:hrs(26)},
+      {id:"v3",type:"pm",byId:"m2",text:'logged a call to the PM: "Budget draft timing"',contactId:"c2",at:hrs(20)},
+      {id:"v4",type:"task",byId:"m4",text:'moved "Fall gutter cleaning" to Done',taskId:"t4",at:hrs(9)},
+      {id:"v5",type:"comment",byId:"m3",text:'posted a status update on "Get quotes for parkade gate repair": @Alex Chen PM says warranty expired in 2024.',textYou:'mentioned you on "Get quotes for parkade gate repair": @Alex Chen PM says warranty expired in 2024.',mentions:["m1"],taskId:"t1",forIds:["m1"],at:hrs(5)},
+    ],
+    members:m,
+    pm:{company:"Example Property Management",name:"Taylor (PM)",email:"pm@example.com",phone:"604-555-0142",example:true},
+    tasks:[
+      {id:"t1",title:"Get quotes for parkade gate repair",ownerId:"m1",status:"waiting",due:addDays(t,-3),category:"Repairs",notes:"PM to collect 3 quotes.",created:addDays(t,-20),example:true},
+      {id:"t2",title:"Review draft 2027 operating budget",ownerId:"m2",status:"doing",due:addDays(t,5),category:"Finance",notes:"",created:addDays(t,-10),example:true},
+      {id:"t3",title:"Circulate October council minutes",ownerId:"m3",status:"todo",due:addDays(t,2),category:"AGM / meetings",notes:"",created:addDays(t,-6),example:true},
+      {id:"t4",title:"Fall gutter cleaning",ownerId:"m4",status:"done",due:addDays(t,-12),category:"Maintenance",notes:"Completed by contractor.",created:addDays(t,-40),example:true},
+      {id:"t5",title:"Update pet bylaw wording for AGM",ownerId:"",status:"todo",due:addDays(t,21),category:"Bylaws",notes:"",created:addDays(t,-2),example:true},
+    ],
+    contacts:[
+      {id:"c1",date:addDays(t,-14),method:"email",byId:"m1",subject:"Parkade gate keeps sticking open",summary:"Asked PM to get repair quotes. PM said they'd reply within a week.",ref:"WO-2291",followUpDate:addDays(t,-7),followUpDone:false,taskId:"t1",example:true},
+      {id:"c2",date:addDays(t,-4),method:"phone",byId:"m2",subject:"Budget draft timing",summary:"PM will send draft budget by end of next week.",ref:"",followUpDate:addDays(t,4),followUpDone:false,taskId:"t2",example:true},
+      {id:"c3",date:addDays(t,-25),method:"email",byId:"m4",subject:"Gutter cleaning booking",summary:"Confirmed contractor date.",ref:"WO-2240",followUpDate:addDays(t,-15),followUpDone:true,taskId:"t4",example:true},
+    ]
+  };
+}
+
+async function loadExamples(){
+  const d = demoData(); const b = fdb.batch();
+  d.members.forEach(m => b.set(fdb.collection("members").doc(m.id), clean(m)));
+  d.tasks.forEach(t => b.set(fdb.collection("tasks").doc(t.id), clean(t)));
+  d.contacts.forEach(c => b.set(fdb.collection("contacts").doc(c.id), clean(c)));
+  if(!S.pm.email && !S.pm.phone) b.set(fdb.collection("settings").doc("pm"), d.pm);
+  try { await b.commit(); toast("Example records added"); } catch(e){ handleWriteError(e); }
+}
+
+/* ---------- sign-in screen ---------- */
+let signUpMode = false;
+const AUTH_ERRORS = {
+  "auth/invalid-credential":"That email and password don't match. Try again, or use Forgot password.",
+  "auth/wrong-password":"That email and password don't match. Try again, or use Forgot password.",
+  "auth/user-not-found":"No account uses that email yet. Choose \"First time? Create a password\".",
+  "auth/email-already-in-use":"That email already has an account. Sign in instead, or use Forgot password.",
+  "auth/weak-password":"Use a password with at least 8 characters.",
+  "auth/invalid-email":"That doesn't look like an email address.",
+  "auth/too-many-requests":"Too many attempts. Wait a few minutes and try again.",
+  "auth/popup-closed-by-user":"The Google window was closed before sign-in finished.",
+  "auth/network-request-failed":"Couldn't reach the sign-in service. Check your connection."
+};
+const authErr = e => AUTH_ERRORS[e && e.code] || "Sign-in didn't work. Try again.";
+function showAuth(msgHtml, showForms=true){
+  $("#app").hidden = true; $("#authScreen").hidden = false;
+  $("#authMsg").innerHTML = msgHtml || "";
+  $("#authForms").hidden = !showForms;
+}
+function setSignUp(on){
+  signUpMode = on;
+  $("#emailSubmit").textContent = on ? "Create account" : "Sign in";
+  $("#toggleMode").textContent = on ? "Already have a password? Sign in" : "First time? Create a password";
+  $("#aPass").autocomplete = on ? "new-password" : "current-password";
+}
+function wireAuthScreen(){
+  $("#toggleMode").onclick = () => setSignUp(!signUpMode);
+  $("#googleBtn").onclick = async () => {
+    const p = new firebase.auth.GoogleAuthProvider(); p.setCustomParameters({prompt:"select_account"});
+    try { await auth.signInWithPopup(p); }
+    catch(e){ if(e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment") await auth.signInWithRedirect(p); else showAuth(`<p class="err">${esc(authErr(e))}</p>`); }
+  };
+  $("#emailForm").onsubmit = async ev => {
+    ev.preventDefault();
+    const email = $("#aEmail").value.trim(), pass = $("#aPass").value;
+    try {
+      if(signUpMode){ const cred = await auth.createUserWithEmailAndPassword(email, pass); await cred.user.sendEmailVerification(); }
+      else await auth.signInWithEmailAndPassword(email, pass);
+    } catch(e){ showAuth(`<p class="err">${esc(authErr(e))}</p>`); }
+  };
+  $("#resetBtn").onclick = async () => {
+    const email = $("#aEmail").value.trim();
+    if(!email){ showAuth(`<p class="err">Type your email above first, then choose Forgot password.</p>`); $("#aEmail").focus(); return; }
+    try { await auth.sendPasswordResetEmail(email); } catch(e){ /* same message either way, so the form doesn't reveal who has an account */ }
+    showAuth(`<div class="notice">If ${esc(email)} has an account, a reset link is on its way. Check your inbox.</div>`);
+  };
+  $("#signOut").onclick = () => auth.signOut();
+}
+
+/* ---------- light / dark ---------- */
+const THEME_NAMES = {system:"Auto", light:"Light", dark:"Dark"};
+const THEME_ICONS = {
+  system:'<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg>',
+  light:'<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3.2" fill="currentColor"/><g stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 .8v2M8 13.2v2M.8 8h2M13.2 8h2M2.9 2.9l1.4 1.4M11.7 11.7l1.4 1.4M2.9 13.1l1.4-1.4M11.7 4.3l1.4-1.4"/></g></svg>',
+  dark:'<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z" fill="currentColor"/></svg>'
+};
+let theme = "system";
+function applyTheme(t, fromUser){
+  theme = t;
+  if(t === "system"){ if(fromUser) document.documentElement.removeAttribute("data-theme"); }
+  else document.documentElement.setAttribute("data-theme", t);
+  const b = $("#themeBtn"); b.innerHTML = THEME_ICONS[t] + "<span>" + THEME_NAMES[t] + "</span>";
+  b.setAttribute("aria-label", `Theme: ${THEME_NAMES[t]}. Click to change.`);
+}
+function wireTheme(){
+  let saved = "system"; try { saved = localStorage.getItem("wcd-theme") || "system"; } catch(e){}
+  applyTheme(THEME_NAMES[saved] ? saved : "system", false);
+  $("#themeBtn").onclick = () => {
+    const next = {system:"light", light:"dark", dark:"system"}[theme];
+    applyTheme(next, true); try { localStorage.setItem("wcd-theme", next); } catch(e){}
+    toast(next === "system" ? "Theme follows your device" : `${THEME_NAMES[next]} theme`);
+  };
+}
+
+/* ---------- boot ---------- */
+function stopListening(){ unsubs.forEach(u => u()); unsubs = []; S.loaded = {}; }
+async function boot(){
+  wireTheme();
+  if(!window.firebase || !CFG.firebase || !CFG.firebase.apiKey){ startDemo(); return; }
+  firebase.initializeApp(CFG.firebase);
+  auth = firebase.auth(); fdb = firebase.firestore();
+  if(CFG.emulator){ auth.useEmulator(`http://${CFG.emulator}:9099`, {disableWarnings:true}); fdb.useEmulator(CFG.emulator, 8080); if(firebase.storage) firebase.storage().useEmulator(CFG.emulator, 9199); }
+  wireAuthScreen();
+  auth.getRedirectResult().catch(e => showAuth(`<p class="err">${esc(authErr(e))}</p>`));
+  auth.onAuthStateChanged(async user => {
+    stopListening(); me = user;
+    if(!user){ showAuth(""); return; }
+    const email = lc(user.email);
+    if(!user.emailVerified){
+      showAuth(`<div class="notice"><span>We sent a link to <b>${esc(email)}</b>. Open it to confirm this is your email, then come back here.</span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="primary" type="button" id="iVerified">I've confirmed it</button><button type="button" id="resend">Send the link again</button><button type="button" id="out1">Use a different account</button></div>`, false);
+      $("#iVerified").onclick = async () => { await user.reload(); if(auth.currentUser.emailVerified){ await user.getIdToken(true); location.reload(); } else toast("Not confirmed yet. Check your inbox and spam folder."); };
+      $("#resend").onclick = async () => { try{ await user.sendEmailVerification(); toast("Link sent"); }catch(e){ toast(authErr(e)); } };
+      $("#out1").onclick = () => auth.signOut();
+      return;
+    }
+    showAuth(`<p class="sub">Checking the council list…</p>`, false);
+    let ok = false;
+    try {
+      const a = await fdb.collection("access").doc(email).get();
+      ok = a.exists && a.data().active === true;
+      if(!ok && !a.exists){
+        /* The first sign-in by the council's owner adds them to the list. The access rules refuse this for anyone else. */
+        const id = uid(); const b = fdb.batch();
+        b.set(fdb.collection("members").doc(id), {name: user.displayName || email.split("@")[0], role:"President", email, unit:"", phone:"", active:true});
+        b.set(fdb.collection("access").doc(email), {active:true, memberId:id});
+        b.set(fdb.collection("settings").doc("ownership"), {ownerEmail: email, since: today()});
+        await b.commit(); ok = true;
+      }
+    } catch(e){ ok = false; }
+    if(!ok){
+      showAuth(`<div class="notice warn"><span><b>${esc(email)}</b> isn't on the council list. Ask a council member to add this email on the Members tab, then sign in again.</span></div>
+        <button type="button" id="out2">Sign out</button>`, false);
+      $("#out2").onclick = () => auth.signOut(); return;
+    }
+    startApp();
+  });
+}
+function startDemo(){
+  Object.assign(S, demoData(), {mode:"demo", ownerEmail:"alex@example.com"}); S.loaded = {members:1,tasks:1,contacts:1,settings:1};
+  $("#authScreen").hidden = true; $("#app").hidden = false;
+  $("#whoami").textContent = "Preview"; $("#signOut").hidden = true;
+  render();
+}
+function startApp(){
+  $("#authScreen").hidden = true; $("#app").hidden = false;
+  $("#whoami").textContent = me.email;
+  S.mode = "live"; render();
+  const timer = setTimeout(()=>{ if(Object.keys(S.loaded).length < 4){ S.slow = true; renderNotices(); } }, 10000);
+  unsubs.push(fdb.collection("comments").onSnapshot(snap => { S.comments = snap.docs.map(d=>({...d.data(), id:d.id})); render(); }, err => console.error(err)));
+  unsubs.push(fdb.collection("activity").orderBy("at","desc").limit(150).onSnapshot(snap => { S.activity = snap.docs.map(d=>({...d.data(), id:d.id})); render(); }, err => console.error(err)));
+  unsubs.push(fdb.collection("notif").doc(readsDocId()).onSnapshot(d => { const x = d.exists ? d.data() : {}; reads = {read:x.read||{}, unread:x.unread||{}, allReadBefore:x.allReadBefore||""}; renderBell(); }, err => console.error(err)));
+  for(const [coll, key] of [["members","members"],["tasks","tasks"],["contacts","contacts"],["settings","pm"]]){
+    unsubs.push(fdb.collection(coll).onSnapshot(snap => {
+      if(coll === "settings"){ const d = snap.docs.find(x=>x.id==="pm"); S.pm = d ? d.data() : {}; const o = snap.docs.find(x=>x.id==="ownership"); S.ownerEmail = o ? lc(o.data().ownerEmail) : ""; }
+      else S[key] = snap.docs.map(d => ({...d.data(), id:d.id}));
+      S.loaded[coll] = true;
+      if(Object.keys(S.loaded).length === 4){ clearTimeout(timer); S.slow = false; }
+      render();
+    }, err => { console.error(err); S.dbError = err.code || "unavailable"; clearTimeout(timer); renderNotices(); }));
+  }
+}
+
+/* ---------- notices ---------- */
+function renderNotices(){
+  const n = [];
+  if(S.mode === "demo") n.push(`<div class="notice warn"><span><b>Preview with sample data.</b> Try anything. Changes reset when you reload, and nothing is shared until the council's Firebase project is connected.</span></div>`);
+  if(S.slow) n.push(`<div class="notice warn"><span>The shared records are taking a while to load. What you see may be out of date.</span></div>`);
+  if(S.dbError) n.push(`<div class="notice warn"><span>Lost the connection to the shared records. Reload the page to reconnect.</span></div>`);
+  if(S.mode==="live" && Object.keys(S.loaded).length===4 && !S.tasks.length && !S.contacts.length && !(S.pm.email||S.pm.phone))
+    n.push(`<div class="notice"><span><b>Welcome.</b> The tracker is empty. Load a few example records to see how it works, then remove them when you add the real council.</span><button class="small" data-act="load-examples">Load example records</button></div>`);
+  const hasEx = [...S.members,...S.tasks,...S.contacts].some(x=>x.example) || S.pm.example;
+  if(hasEx && !demo()) n.push(`<div class="notice"><span>Some records are <span class="pill ex">Example</span> data to show how it works. Remove them when you're ready to add the real council.</span><button class="small" data-act="clear-examples">Remove example data</button></div>`);
+  $("#notices").innerHTML = n.join("");
+}
+
+/* ---------- routing ---------- */
+const VIEWS = ["overview","tasks","pm","members"];
+const currentView = () => { const h = location.hash.slice(1); return VIEWS.includes(h) ? h : "overview"; };
+window.addEventListener("hashchange", render);
+
+function render(){
+  const v = currentView();
+  document.querySelectorAll("#nav a").forEach(a => {
+    a.toggleAttribute("aria-current", a.dataset.view === v); if(a.dataset.view===v) a.setAttribute("aria-current","page");
+    const lateN = a.dataset.view==="pm" ? S.contacts.filter(fuLate).length : a.dataset.view==="tasks" ? S.tasks.filter(taskLate).length : 0;
+    a.innerHTML = esc(a.textContent.replace(/\d+$/,"").trim()) + (lateN ? `<span class="badge-n" aria-label="${lateN} overdue">${lateN}</span>` : "");
+  });
+  renderNotices();
+  $("#quickAdd").hidden = S.readOnly;
+  if(S.mode === "loading"){ return; }
+  const html = v==="tasks" ? viewTasks() : v==="pm" ? viewPM() : v==="members" ? viewMembers() : viewOverview();
+  $("#view").innerHTML = html;
+  const f = $("#view [data-filter-root]"); if(f) restoreFilters();
+  renderBell(); renderComments();
+}
+
+/* ---------- views ---------- */
+const clip = `<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true" style="margin-right:3px;vertical-align:-1px"><path d="M10.5 4.5 5.4 9.6a1.5 1.5 0 0 0 2.1 2.1l5.6-5.6a3 3 0 0 0-4.2-4.2L3.2 7.6a4.5 4.5 0 0 0 6.4 6.4l4.4-4.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+const cmCount = t => { const n = S.comments.filter(c=>c.taskId===t.id).length; return n ? `<span class="pill" title="Comments">${n} comment${n===1?"":"s"}</span>` : ""; };
+const exPill = r => r.example ? ` <span class="pill ex">Example</span>` : "";
+const ro = () => S.readOnly;
+
+function viewOverview(){
+  const lateFU = S.contacts.filter(fuLate), lateT = S.tasks.filter(taskLate);
+  const openT = S.tasks.filter(t=>t.status!=="done");
+  const orph = S.tasks.filter(orphaned);
+  const soonFU = S.contacts.filter(c=>fuOpen(c) && !fuLate(c) && daysBetween(today(),c.followUpDate)<=7);
+  const soonT = openT.filter(t=>!taskLate(t) && t.due && daysBetween(today(),t.due)<=7);
+  const items = [
+    ...lateFU.map(c=>({k:"fu",r:c,d:c.followUpDate})), ...lateT.map(t=>({k:"t",r:t,d:t.due})),
+    ...soonFU.map(c=>({k:"fu",r:c,d:c.followUpDate})), ...soonT.map(t=>({k:"t",r:t,d:t.due})),
+  ].sort((a,b)=>a.d.localeCompare(b.d));
+  const attention = items.length ? items.map(i => i.k==="fu" ? contactRow(i.r,true) : taskRow(i.r)).join("") :
+    `<div class="empty">Nothing overdue or due this week.</div>`;
+  const act = activeMembers();
+  const counts = act.map(m=>({m, n: openT.filter(t=>t.ownerId===m.id).length, late: lateT.filter(t=>t.ownerId===m.id).length}));
+  const max = Math.max(1, ...counts.map(c=>c.n));
+  return `
+  <div class="tiles">
+    <div class="tile ${lateFU.length?"late":""}"><b>${lateFU.length}</b><span>PM follow-ups overdue</span></div>
+    <div class="tile ${lateT.length?"late":""}"><b>${lateT.length}</b><span>Tasks overdue</span></div>
+    <div class="tile"><b>${openT.length}</b><span>Open tasks</span></div>
+    <div class="tile"><b>${act.length}</b><span>Council members</span></div>
+  </div>
+  <div class="grid2">
+    <section class="panel">
+      <div class="section-head"><div><h2>Needs attention</h2><p class="sub">Overdue first, then anything due in the next 7 days.</p></div></div>
+      <div class="list">${attention}</div>
+    </section>
+    <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
+      ${orph.length ? `<section class="panel"><h3>Tasks without an owner (${orph.length})</h3><p class="sub" style="margin-top:-6px;margin-bottom:10px">Unassigned, or the owner has left council.</p><div class="list">${orph.map(t=>`<div class="row"><div><div class="title">${esc(t.title)}</div><div class="meta"><span>${esc(memberName(t.ownerId))}</span><span class="date">${fmt(t.due)}</span></div></div><div class="acts">${ro()?"":`<button class="small" data-act="edit-task" data-id="${t.id}">Assign</button>`}</div></div>`).join("")}</div></section>` : ""}
+      <section class="panel">
+        <h3>Open tasks by member</h3>
+        ${counts.length ? `<div class="list">${counts.map(c=>`<div class="row"><div><div class="title">${esc(c.m.name)}</div><div class="load"><div class="bar" style="width:${Math.round(c.n/max*100)}%;max-width:140px"></div><span class="meta">${c.n} open${c.late?` · <span style="color:var(--late)">${c.late} late</span>`:""}</span></div></div></div>`).join("")}</div>` : `<div class="empty">Add council members to see who's carrying what.</div>`}
+      </section>
+    </div>
+  </div>`;
+}
+
+function taskRow(t){
+  const ds = dueState(t.due, t.status==="done");
+  return `<div class="row">
+    <div>
+      <div class="title">${esc(t.title)}${exPill(t)}</div>
+      <div class="meta"><span class="pill ${t.status==="done"?"ok":t.status==="waiting"?"acc":""}">${statusLabel(t.status)}</span><span>Task · ${esc(memberName(t.ownerId))}</span><span class="date">Due ${fmt(t.due)}</span>${ds?`<span class="pill ${ds.cls}">${ds.text}</span>`:""}${(t.files||[]).length?`<span class="pill" title="Documents">${clip}${t.files.length}</span>`:""}</div>
+    </div>
+    <div class="acts">${ro()?"":`<button class="small" data-act="edit-task" data-id="${t.id}">Open</button>`}</div>
+  </div>`;
+}
+
+function contactRow(c, compact){
+  const ds = dueState(c.followUpDate, c.followUpDone);
+  const task = c.taskId ? S.tasks.find(t=>t.id===c.taskId) : null;
+  return `<div class="row">
+    <div>
+      <div class="title">${esc(c.subject)}${exPill(c)}</div>
+      <div class="meta"><span class="method">${c.method==="phone"?"PHONE":"EMAIL"}</span><span class="date">${fmt(c.date)}</span><span>by ${esc(memberName(c.byId))}</span>${c.ref?`<span class="date">Ref ${esc(c.ref)}</span>`:""}
+        ${chases(c) ? `<span class="pill">Chased ${chases(c)}×</span>` : ""}
+        ${c.followUpDate ? (c.followUpDone ? `<span class="pill ok">Answered${c.answeredOn?` ${fmt(c.answeredOn)}`:""}</span>` : `<span>Follow up by <span class="date">${fmt(c.followUpDate)}</span></span>${ds?`<span class="pill ${ds.cls}">${ds.text}</span>`:""}`) : ""}
+        ${task && !compact ? `<span>Task: ${esc(task.title)}</span>` : ""}
+      </div>
+    </div>
+    <div class="acts">${ro()?"":`
+      ${fuOpen(c)?`<button class="small" data-act="draft" data-id="${c.id}">Chase</button><button class="small" data-act="answer" data-id="${c.id}">Got an answer</button>`:""}
+      <button class="small" data-act="edit-contact" data-id="${c.id}">Open</button>`}
+    </div>
+    ${!compact && c.summary ? `<div class="notes">${esc(c.summary)}</div>` : ""}
+    ${!compact && c.followUpDone && c.outcome ? `<div class="notes"><b>Answer:</b> ${esc(c.outcome)}</div>` : ""}
+  </div>`;
+}
+
+let filt = { owner:"", cat:"", layout:"board", pmShow:"open" };
+try { const saved = JSON.parse(localStorage.getItem("wcd-filters")||"{}"); filt = {...filt, ...saved}; } catch(e){}
+function saveFilters(){ try{ localStorage.setItem("wcd-filters", JSON.stringify(filt)); }catch(e){} }
+function restoreFilters(){}
+
+function viewTasks(){
+  let ts = S.tasks.slice();
+  if(filt.owner) ts = ts.filter(t => filt.owner==="none" ? orphaned(t) : t.ownerId===filt.owner);
+  if(filt.cat) ts = ts.filter(t => t.category===filt.cat);
+  ts.sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999"));
+  const filters = `<div class="filters" data-filter-root>
+    <select id="fOwner" aria-label="Filter by owner"><option value="">Everyone</option><option value="none" ${filt.owner==="none"?"selected":""}>No owner</option><option value="pm" ${filt.owner==="pm"?"selected":""}>Property manager</option>${S.members.map(m=>`<option value="${m.id}" ${filt.owner===m.id?"selected":""}>${esc(memberName(m.id))}</option>`).join("")}</select>
+    <select id="fCat" aria-label="Filter by category"><option value="">All categories</option>${CATEGORIES.map(c=>`<option ${filt.cat===c?"selected":""}>${c}</option>`).join("")}</select>
+    <select id="fLayout" aria-label="Layout"><option value="board" ${filt.layout==="board"?"selected":""}>Board</option><option value="list" ${filt.layout==="list"?"selected":""}>List</option></select>
+  </div>`;
+  let body;
+  if(!S.tasks.length) body = `<div class="empty">No tasks yet. Use <b>New task</b> to add the first one, like "Get quotes for roof inspection".</div>`;
+  else if(filt.layout==="list") body = `<div class="panel"><div class="list">${ts.map(taskRow).join("") || `<div class="empty">No tasks match these filters.</div>`}</div></div>`;
+  else body = `<div class="board">${STATUSES.map(([k,label]) => { const col = ts.filter(t=>(t.status||"todo")===k); return `<div class="col"><h3><span>${label}</span><span>${col.length}</span></h3>${col.map(t=>{const ds=dueState(t.due,t.status==="done");return `<div class="card" ${ro()?"":`data-act="edit-task" data-id="${t.id}" role="button" tabindex="0"`}><div class="t">${esc(t.title)}</div><div class="m"><span>${esc(memberName(t.ownerId))}</span><span class="date">${fmt(t.due)}</span>${ds?`<span class="pill ${ds.cls}">${ds.text}</span>`:""}${t.category?`<span class="pill">${esc(t.category)}</span>`:""}${(t.files||[]).length?`<span class="pill" title="Documents">${clip}${t.files.length}</span>`:""}${cmCount(t)}${exPill(t)}</div></div>`}).join("")}</div>`; }).join("")}</div>`;
+  return `<div class="section-head"><div><h2>Tasks</h2><p class="sub">Every council action item, who owns it, and when it's due.</p></div>${ro()?"":`<div style="display:flex;gap:8px;flex-wrap:wrap"><button data-act="import-minutes">Import minutes</button><button class="primary" data-act="new-task">New task</button></div>`}</div>${filters}${body}`;
+}
+
+function viewPM(){
+  const pm = S.pm || {};
+  let cs = S.contacts.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  if(filt.pmShow==="open") cs = cs.filter(fuOpen).sort((a,b)=>a.followUpDate.localeCompare(b.followUpDate));
+  const pmCard = `<section class="panel" style="margin-bottom:20px">
+    <div class="section-head" style="margin-bottom:10px"><h3 style="margin:0">Property manager${pm.example?' <span class="pill ex">Example</span>':""}</h3>${ro()?"":`<button class="small" data-act="edit-pm">Edit details</button>`}</div>
+    ${pm.name||pm.company||pm.email||pm.phone ? `<div class="pm-card">
+      ${pm.company?`<div class="kv"><small>Company</small><span>${esc(pm.company)}</span></div>`:""}
+      ${pm.name?`<div class="kv"><small>Manager</small><span>${esc(pm.name)}</span></div>`:""}
+      ${pm.email?`<div class="kv"><small>Email</small><span class="v">${esc(pm.email)}</span></div><button class="small" data-act="copy" data-text="${esc(pm.email)}">Copy email</button>`:""}
+      ${pm.phone?`<div class="kv"><small>Phone</small><span class="v">${esc(pm.phone)}</span></div><button class="small" data-act="copy" data-text="${esc(pm.phone)}">Copy number</button>`:""}
+    </div>` : `<p class="sub">Add the property manager's email and phone so everyone has them in one place.</p>`}
+  </section>`;
+  const list = !S.contacts.length ? `<div class="empty">No contacts logged yet. After you email or call the property manager, use <b>Log PM contact</b> and set a follow-up date.</div>`
+    : cs.length ? `<div class="panel"><div class="list">${cs.map(c=>contactRow(c,false)).join("")}</div></div>` : `<div class="empty">No open follow-ups. Nice.</div>`;
+  return `${pmCard}
+  <div class="section-head"><div><h2>Contact log</h2><p class="sub">Every email and call to the property manager, with the date we expect an answer.</p></div>${ro()?"":`<button class="primary" data-act="new-contact">Log PM contact</button>`}</div>
+  <div class="filters"><select id="fPm" aria-label="Show"><option value="open" ${filt.pmShow==="open"?"selected":""}>Waiting on a follow-up</option><option value="all" ${filt.pmShow==="all"?"selected":""}>All contacts</option></select></div>
+  ${list}`;
+}
+
+function viewMembers(){
+  const act = activeMembers(), former = S.members.filter(m=>m.active===false);
+  const rowsHtml = list => list.map(m => {
+    const open = S.tasks.filter(t=>t.ownerId===m.id && t.status!=="done").length;
+    return `<tr><td><b>${esc(m.name)}</b>${isOwnerMember(m)?' <span class="pill acc" title="Can always sign in and is the only one who can transfer ownership">Owner</span>':""}${exPill(m)}</td><td>${esc(m.role||"")}</td><td class="date">${esc(m.unit||"")}</td><td><span style="overflow-wrap:anywhere">${esc(m.email||"")}</span>${m.phone?`<br><span class="date">${esc(m.phone)}</span>`:""}</td><td class="date">${m.termEnds?fmt(m.termEnds):"—"}</td><td>${open}</td>
+      <td style="white-space:nowrap">${ro()?"":`<button class="small" data-act="edit-member" data-id="${m.id}">Edit</button>`}</td></tr>`;
+  }).join("");
+  const table = list => `<div class="tscroll"><table><thead><tr><th>Name</th><th>Role</th><th>Unit</th><th>Contact</th><th>Term ends</th><th>Open tasks</th><th></th></tr></thead><tbody>${rowsHtml(list)}</tbody></table></div>`;
+  const own = ownerMember();
+  const ownLine = iAmOwner() ? `You're the owner of this tracker. <button type="button" class="link" data-act="transfer">Transfer ownership</button>` : own ? `Owner: ${esc(own.name)}. Only they can transfer ownership.` : "";
+  return `<div class="section-head"><div><h2>Council members</h2><p class="sub">${act.length} current member${act.length===1?"":"s"}. No limit on how many you add.${ownLine?`<br>${ownLine}`:""}</p></div>${ro()?"":`<button class="primary" data-act="new-member">Add member</button>`}</div>
+  ${act.length ? `<div class="panel">${table(act)}</div>` : `<div class="empty">No members yet. Add each council member so tasks can be assigned to them.</div>`}
+  ${former.length ? `<h3 style="margin-top:28px">Former members</h3><p class="sub" style="margin-top:-6px;margin-bottom:10px">They can no longer sign in. Kept so past tasks and contacts still show who handled them.</p><div class="panel">${table(former)}</div>` : ""}`;
+}
+
+/* ---------- modals ---------- */
+function openModal(html, onMount){
+  $("#modalRoot").innerHTML = `<div class="scrim" data-scrim><div class="modal" role="dialog" aria-modal="true">${html}</div></div>`;
+  const first = $("#modalRoot input, #modalRoot select, #modalRoot textarea"); if(first) first.focus();
+  onMount && onMount($("#modalRoot .modal"));
+}
+const closeModal = () => {
+  if(mf && mf.isNew && mf.files.length){ mf.files.forEach(f => files.remove(f).catch(()=>{})); }
+  mf = null; $("#modalRoot").innerHTML = "";
+};
+const opts = (list, val) => list.map(([v,l])=>`<option value="${esc(v)}" ${v===val?"selected":""}>${esc(l)}</option>`).join("");
+const memberOpts = (val, blank="Unassigned", pm=false) => `<option value="">${blank}</option>` + (pm ? `<option value="pm" ${val==="pm"?"selected":""}>Property manager</option>` : "") + opts(activeMembers().map(m=>[m.id,m.name]).concat(val && member(val)?.active===false ? [[val, memberName(val)]] : []), val);
+const formData = f => Object.fromEntries(new FormData(f).entries());
+
+function deleteControl(kind, id){
+  return `<button type="button" class="danger" data-act="ask-delete">Delete</button>
+    <span data-confirm hidden>Delete for good? <button type="button" class="danger small" data-act="do-delete" data-kind="${kind}" data-id="${id}">Yes, delete</button> <button type="button" class="small" data-act="cancel-delete">No</button></span>`;
+}
+
+function taskModal(t){
+  const isNew = !t; t = t || {status:"todo", due:addDays(today(),14), ownerId:"", category:""};
+  const related = isNew ? [] : S.contacts.filter(c=>c.taskId===t.id);
+  mf = {taskId: isNew ? uid() : t.id, isNew, files: (t.files||[]).map(f=>({...f})), uploads: []};
+  openModal(`<h2>${isNew?"New task":"Edit task"}</h2>
+  <form class="form" id="taskForm">
+    <label class="full">What needs doing<input id="tTitle" name="title" required value="${esc(t.title)}" placeholder="e.g. Get quotes for roof inspection"></label>
+    <label>Owner<select id="tOwner" name="ownerId">${memberOpts(t.ownerId, "Unassigned", true)}</select></label>
+    <label>Status<select id="tStatus" name="status">${opts(STATUSES, t.status)}</select></label>
+    <label>Due date<input id="tDue" type="date" name="due" value="${esc(t.due||"")}"></label>
+    <label>Category<select id="tCat" name="category"><option value="">—</option>${opts(CATEGORIES.map(c=>[c,c]), t.category)}</select></label>
+    <label class="full">Notes<span class="mention-wrap"><textarea id="tNotes" name="notes" data-mentions placeholder="Details. Type @ to tag a member.">${esc(t.notes)}</textarea><span class="mention-pop" role="listbox" hidden></span></span></label>
+    ${related.length ? `<div class="full"><small class="sub">PM contacts about this task: ${related.map(c=>`${esc(c.subject)} (${fmt(c.date)})`).join("; ")}</small></div>`:""}
+    ${attachSection()}
+    ${commentSection()}
+  </form>
+  <div class="modal-acts"><div>${isNew?"":deleteControl("tasks", t.id)}</div><div><button type="button" data-act="close">Cancel</button><button type="button" class="primary" data-act="save-task" data-id="${isNew?"":t.id}">Save</button></div></div>`, m => { renderFileList(); wireFileDrop(m); renderComments(); wireMentions(m); });
+}
+
+function contactModal(c){
+  const isNew = !c; c = c || {date:today(), method:"email", byId:"", followUpDate:addDays(today(),7), followUpDone:false};
+  openModal(`<h2>${isNew?"Log a property manager contact":"Edit contact"}</h2>
+  <form class="form" id="contactForm">
+    <label class="full">Subject<input id="cSubject" name="subject" required value="${esc(c.subject)}" placeholder="e.g. Leak in unit 204 ceiling"></label>
+    <label>Date<input id="cDate" type="date" name="date" value="${esc(c.date)}"></label>
+    <label>How<select id="cMethod" name="method">${opts([["email","Email"],["phone","Phone call"]], c.method)}</select></label>
+    <label>Contacted by<select id="cBy" name="byId">${memberOpts(c.byId,"Choose a member")}</select></label>
+    <label>Work order / ref #<input id="cRef" name="ref" value="${esc(c.ref)}" placeholder="optional"></label>
+    <label class="full">What was said<textarea id="cSummary" name="summary" placeholder="What we asked for and what the PM said they'd do">${esc(c.summary)}</textarea></label>
+    <label>Follow up by<input id="cFu" type="date" name="followUpDate" value="${esc(c.followUpDate||"")}"></label>
+    <label>Related task<select id="cTask" name="taskId"><option value="">None</option>${opts(S.tasks.filter(t=>t.status!=="done"||t.id===c.taskId).map(t=>[t.id,t.title]), c.taskId)}</select></label>
+    <label class="check full"><input id="cDone" type="checkbox" name="followUpDone" ${c.followUpDone?"checked":""}> Answered (no follow-up needed)</label>
+    ${c.outcome ? `<label class="full">Their answer<textarea id="cOutcome" name="outcome">${esc(c.outcome)}</textarea></label>` : ""}
+  </form>
+  ${(c.history||[]).length ? `<h3 style="margin-top:16px">History</h3>${historyList(c)}` : ""}
+  <div class="modal-acts"><div>${isNew?"":deleteControl("contacts", c.id)}</div><div><button type="button" data-act="close">Cancel</button><button type="button" class="primary" data-act="save-contact" data-id="${isNew?"":c.id}">Save</button></div></div>`);
+}
+
+function memberModal(m){
+  const isNew = !m; m = m || {active:true};
+  const open = isNew ? 0 : S.tasks.filter(t=>t.ownerId===m.id && t.status!=="done").length;
+  openModal(`<h2>${isNew?"Add council member":"Edit member"}</h2>
+  <form class="form" id="memberForm">
+    <label class="full">Name<input id="mName" name="name" required value="${esc(m.name)}"></label>
+    <label>Role<select id="mRole" name="role">${opts(ROLES.map(r=>[r,r]), m.role||"Member at large")}</select></label>
+    <label>Unit #<input id="mUnit" name="unit" value="${esc(m.unit)}"></label>
+    <label>Email (used to sign in)<input id="mEmail" type="email" name="email" required value="${esc(m.email)}" ${isOwnerMember(m)?'readonly title="The owner\'s sign-in email can only change by transferring ownership"':""}></label>
+    <label>Phone<input id="mPhone" name="phone" value="${esc(m.phone)}"></label>
+    <label>Term ends<input id="mTerm" type="date" name="termEnds" value="${esc(m.termEnds||"")}"></label>
+  </form>
+  <p class="sub" style="margin-top:14px">${isNew?"Once added, they can sign in with this email using Google or a password.":""}</p>
+  ${isOwnerMember(m) ? `<p class="sub" style="margin-top:6px"><b>${m.id===myMemberId()?"You're":"This is"} the owner.</b> ${m.id===myMemberId()?"Before you leave council, transfer ownership to another member.":"Only the owner can transfer ownership. They can't be marked as a former member until they do."}</p>`
+  : !isNew && m.active!==false ? `<p class="sub" style="margin-top:6px">Leaving council? <b>Mark as former member</b> keeps their history and stops them signing in.${open?` Their ${open} open task${open===1?"":"s"} will show under "Tasks without an owner" so someone can pick them up.`:""}</p>`:""}
+  <div class="modal-acts"><div>${isNew?"": m.active===false ? `<button type="button" data-act="restore-member" data-id="${m.id}">Restore to council</button>${deleteControl("members", m.id)}` : isOwnerMember(m) ? (m.id===myMemberId() ? `<button type="button" data-act="transfer">Transfer ownership</button>` : "") : `<button type="button" data-act="retire-member" data-id="${m.id}">Mark as former member</button>`}</div>
+  <div><button type="button" data-act="close">Cancel</button><button type="button" class="primary" data-act="save-member" data-id="${isNew?"":m.id}">Save</button></div></div>`);
+}
+
+function pmModal(){
+  const p = S.pm || {};
+  openModal(`<h2>Property manager details</h2>
+  <form class="form" id="pmForm">
+    <label class="full">Company<input id="pCompany" name="company" value="${esc(p.company)}"></label>
+    <label class="full">Manager's name<input id="pName" name="name" value="${esc(p.name)}"></label>
+    <label>Email<input id="pEmail" type="email" name="email" value="${esc(p.email)}"></label>
+    <label>Phone<input id="pPhone" name="phone" value="${esc(p.phone)}"></label>
+  </form>
+  <div class="modal-acts"><div></div><div><button type="button" data-act="close">Cancel</button><button type="button" class="primary" data-act="save-pm">Save</button></div></div>`);
+}
+
+function draftModal(c){
+  const pm = S.pm || {};
+  const who = member(myMemberId()) || member(c.byId);
+  const days = daysBetween(c.date, today());
+  const n = chases(c);
+  const text = `Subject: Follow-up: ${c.subject}${c.ref?` (Ref ${c.ref})`:""}
+
+Hi ${pm.name || "there"},
+
+I'm following up on our ${c.method==="phone"?"call":"email"} from ${fmt(c.date)}${days>0?` (${days} days ago)`:""} about ${c.subject.toLowerCase()}.${n?` This is our ${n===1?"second":n===2?"third":`${n+1}th`} follow-up on this.`:""}${c.summary?`
+
+For reference: ${c.summary}`:""}
+
+Could you let us know where this stands and when we can expect an update?
+
+Thanks,
+${who ? who.name + (who.role?`, ${who.role}`:"") : "[Your name]"}
+Wedgewood Strata Council`;
+  openModal(`<h2>Chase the property manager</h2>
+  <p class="sub" style="margin-top:-8px;margin-bottom:10px">Copy this into your email and send it to <span class="date" style="user-select:all">${esc(pm.email || "the property manager")}</span>${pm.phone?`, or call <span class="date" style="user-select:all">${esc(pm.phone)}</span>`:""}.</p>
+  <pre class="draft" id="draftText">${esc(text)}</pre>
+  <div style="display:flex;justify-content:flex-end;margin-top:8px"><button type="button" class="small" data-act="copy-draft">Copy text</button></div>
+  <h3 style="margin-top:18px">Once you've chased them</h3>
+  <form class="form" id="chaseForm">
+    <label>How you chased<select id="chMethod" name="method">${opts([["email","Email"],["phone","Phone call"]],"email")}</select></label>
+    <label>Next follow-up by<input id="chNext" type="date" name="next" value="${addDays(today(),7)}" required></label>
+    <label class="full">Note (optional)<input id="chNote" name="note" placeholder="e.g. Left voicemail"></label>
+  </form>
+  ${n ? `<p class="sub" style="margin-top:12px;margin-bottom:4px">Earlier chases</p>${historyList(c)}` : ""}
+  <div class="modal-acts"><div></div><div><button type="button" data-act="close">Close</button><button type="button" class="primary" data-act="log-chase" data-id="${c.id}">Log this chase</button></div></div>`);
+}
+function historyList(c){
+  const h = (c.history||[]).slice().sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+  if(!h.length) return "";
+  return `<ul class="history">${h.map(x=>`<li><span class="date">${fmt(x.date)}</span><span>${x.type==="answer"?"<b>Answered</b>":`Chased by ${x.method==="phone"?"phone":"email"}`} · ${esc(memberName(x.byId))}${x.note?` · ${esc(x.note)}`:""}</span></li>`).join("")}</ul>`;
+}
+function answerModal(c){
+  const task = c.taskId ? S.tasks.find(t=>t.id===c.taskId) : null;
+  openModal(`<h2>Record the PM's answer</h2>
+  <p class="sub" style="margin-top:-8px">${esc(c.subject)}</p>
+  <form class="form" id="answerForm" style="margin-top:12px">
+    <label class="full">What did they say?<textarea id="ansText" name="outcome" placeholder="e.g. Three quotes attached. Lowest is $4,200 from Coastal Gates."></textarea></label>
+    ${task && task.status!=="done" ? `<label class="full">Related task: ${esc(task.title)}<select id="ansTask" name="taskStatus"><option value="">Leave as ${esc(statusLabel(task.status))}</option>${opts(STATUSES.filter(s=>s[0]!==task.status), "")}</select></label>` : ""}
+  </form>
+  <p class="sub" style="margin-top:12px">This closes the follow-up. It stays in the log under <b>All contacts</b>.</p>
+  <div class="modal-acts"><div></div><div><button type="button" data-act="close">Cancel</button><button type="button" class="primary" data-act="save-answer" data-id="${c.id}">Mark as answered</button></div></div>`);
+}
+
+/* ---------- task documents ---------- */
+let mf = null; // the open task modal's attachment state: {taskId, isNew, files:[], uploads:[]}
+const fileIcon = f => /pdf$/i.test(f.name) ? "PDF" : /\.(jpe?g|png|heic|gif|webp)$/i.test(f.name) ? "IMG" : /\.(docx?|odt|rtf)$/i.test(f.name) ? "DOC" : /\.(xlsx?|csv)$/i.test(f.name) ? "XLS" : /\.(eml|msg)$/i.test(f.name) ? "EML" : "FILE";
+function renderFileList(){
+  const el = $("#fileList"); if(!el || !mf) return;
+  const rows = mf.files.map(f => `<div class="frow">
+      <span class="ficon">${fileIcon(f)}</span>
+      <div class="fmain"><a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.name)}</a><span class="meta">${fmtSize(f.size)} · ${esc(memberName(f.addedBy))} · <span class="date">${fmt(f.addedAt)}</span></span></div>
+      <select class="flabel" data-fid="${f.id}" aria-label="Document type">${opts(FILE_LABELS.map(x=>[x,x]), f.label)}</select>
+      <span><button type="button" class="small" data-act="ask-rmfile">Remove</button><span data-confirm hidden><button type="button" class="small danger" data-act="rmfile" data-fid="${f.id}">Remove file</button> <button type="button" class="small" data-act="cancel-delete">Keep</button></span></span>
+    </div>`).join("");
+  const ups = mf.uploads.map(u => `<div class="frow"><span class="ficon">…</span><div class="fmain"><span>${esc(u.name)}</span><span class="meta">${u.error ? `<span style="color:var(--late)">${esc(u.error)}</span>` : `Uploading ${Math.round(u.p*100)}%`}</span></div></div>`).join("");
+  el.innerHTML = rows + ups || `<p class="sub" style="margin:0">No documents yet.</p>`;
+}
+async function persistFiles(){
+  if(!mf || mf.isNew) return;
+  const t = S.tasks.find(x=>x.id===mf.taskId); if(!t) return;
+  await store.set("tasks", t.id, {...clean(t), files: mf.files});
+}
+async function addFiles(list){
+  for(const file of list){
+    const u = {name:file.name, p:0};
+    if(file.size > MAX_FILE){ u.error = `Too large (${fmtSize(file.size)}). The limit is 25 MB.`; mf.uploads.push(u); renderFileList(); continue; }
+    mf.uploads.push(u); renderFileList();
+    try {
+      const meta = await files.upload(mf.taskId, file, p => { u.p = p; renderFileList(); });
+      mf.uploads = mf.uploads.filter(x=>x!==u); mf.files.push(meta); renderFileList(); await persistFiles();
+      if(!mf.isNew){ const t = S.tasks.find(x=>x.id===mf.taskId); logActivity({type:"doc", text:`attached ${meta.label.toLowerCase()} "${meta.name}" to "${t ? t.title : "a task"}"`, taskId:mf.taskId}); }
+    } catch(e){ console.error(e); u.error = e.code === "storage/unauthorized" ? "You don't have permission to upload." : "Upload failed. Try again."; renderFileList(); }
+  }
+}
+function wireFileDrop(modal){
+  const input = $("#tFiles"); if(!input) return;
+  input.addEventListener("change", () => { addFiles([...input.files]); input.value = ""; });
+  const zone = $(".attach", modal);
+  ["dragenter","dragover"].forEach(e => zone.addEventListener(e, ev => { ev.preventDefault(); zone.classList.add("drag"); }));
+  ["dragleave","drop"].forEach(e => zone.addEventListener(e, ev => { ev.preventDefault(); zone.classList.remove("drag"); }));
+  zone.addEventListener("drop", ev => { if(ev.dataTransfer.files.length) addFiles([...ev.dataTransfer.files]); });
+  modal.addEventListener("change", ev => { if(ev.target.matches(".flabel")){ const f = mf.files.find(x=>x.id===ev.target.dataset.fid); if(f){ f.label = ev.target.value; persistFiles(); } } });
+}
+const attachSection = () => `<div class="full attach">
+    <div class="attach-head"><b>Documents</b><label class="btn small" for="tFiles">Attach files</label><input type="file" id="tFiles" multiple hidden></div>
+    <div id="fileList"></div>
+    <p class="sub" style="margin:0;font-size:12px">Quotes, invoices, emails saved as PDF or .eml, photos. Drag files here or use Attach. Up to 25 MB each.</p>
+  </div>`;
+
+/* ---------- minutes → tasks ---------- */
+const SAMPLE_MINUTES = `WEDGEWOOD STRATA COUNCIL MEETING MINUTES
+Held November 18, 2026 at 7:00 PM in the amenity room
+
+Present: Alex Chen (President), Priya Sandhu (Treasurer), Jordan Blake (Secretary), Sam Okafor
+Regrets: none
+
+1. Call to order at 7:04 PM. Quorum confirmed.
+2. Adoption of October minutes. Moved by Priya, seconded by Sam. Carried.
+
+3. Financial report
+Treasurer reported the operating fund is on budget. The contingency reserve fund balance is $212,400.
+Priya to circulate the draft 2027 operating budget to council by December 1.
+
+4. Parkade gate
+The gate has failed three times this month. Council discussed the two quotes received.
+ACTION: PM to obtain a third quote for gate motor replacement by Nov 30.
+Alex will review all three quotes and recommend a contractor before the next meeting.
+
+5. Landscaping
+Owners have complained about leaves on the east walkway.
+- Sam to ask the landscaper about adding a fall cleanup visit (Action: Sam)
+[ ] Confirm landscaping contract renewal terms with PM within 2 weeks
+
+6. Bylaws
+The pet bylaw wording needs to be updated before the AGM.
+Jordan to draft revised pet bylaw wording by January 15th.
+
+7. Correspondence
+Letter received from unit 207 about noise. Secretary to send standard noise reminder letter by Friday.
+
+8. New business
+Discussion of EV charging. No decision; to be revisited in spring.
+
+Adjourned 8:41 PM. Next meeting December 16, 2026.`;
+
+const MONTHS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+const WEEKDAYS = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+const NUMWORDS = {one:1,two:2,three:3,four:4,five:5,six:6,a:1};
+const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function parseDue(line, base){
+  const b = new Date(base+"T12:00:00");
+  const pre = "(?:\\b(?:by|before|on|no later than|due)\\s+(?:the\\s+)?)?";
+  const tries = [
+    [new RegExp(pre+"(\\d{4})-(\\d{2})-(\\d{2})","i"), m => `${m[1]}-${m[2]}-${m[3]}`],
+    [new RegExp(pre+"\\b("+MONTHS.join("|")+")[a-z]*\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s*(\\d{4}))?\\b","i"), m => monthDay(MONTHS.indexOf(m[1].toLowerCase().slice(0,3)), +m[2], m[3])],
+    [new RegExp(pre+"\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?("+MONTHS.join("|")+")[a-z]*\\.?(?:,?\\s*(\\d{4}))?\\b","i"), m => monthDay(MONTHS.indexOf(m[2].toLowerCase().slice(0,3)), +m[1], m[3])],
+    [new RegExp("\\b(?:within|in)\\s+(\\d+|one|two|three|four|five|six|a)\\s+(day|week|month)s?\\b","i"), m => { const n = NUMWORDS[m[1].toLowerCase()] || +m[1]; return addDays(base, m[2].toLowerCase()==="day"?n:m[2].toLowerCase()==="week"?n*7:n*30); }],
+    [new RegExp(pre+"\\b(?:the\\s+)?(?:next|following)\\s+(?:council\\s+)?meeting\\b","i"), () => addDays(base, 28)],
+    [new RegExp(pre+"\\bend of (?:the )?month\\b","i"), () => iso(new Date(b.getFullYear(), b.getMonth()+1, 0))],
+    [new RegExp(pre+"\\bend of (?:the )?week\\b","i"), () => addDays(base, (5 - b.getDay() + 7) % 7 || 7)],
+    [new RegExp(pre+"\\bnext week\\b","i"), () => addDays(base, 7)],
+    [new RegExp(pre+"\\btomorrow\\b","i"), () => addDays(base, 1)],
+    [new RegExp("\\b(?:asap|as soon as possible|immediately)\\b","i"), () => addDays(base, 3)],
+    [new RegExp(pre+"\\b(?:this |next )?("+WEEKDAYS.join("|")+")\\b","i"), m => addDays(base, ((WEEKDAYS.indexOf(m[1].toLowerCase()) - b.getDay() + 7) % 7) || 7)],
+  ];
+  function monthDay(mo, d, y){
+    let yr = y ? +y : b.getFullYear(); let dt = new Date(yr, mo, d, 12);
+    if(!y && dt < b) dt = new Date(yr+1, mo, d, 12);
+    return iso(dt);
+  }
+  for(const [re, fn] of tries){ const m = line.match(re); if(m) return {due: fn(m), phrase: m[0]}; }
+  return {due:"", phrase:""};
+}
+function guessCategory(l){
+  const t = l.toLowerCase();
+  if(/budget|invoice|fund|levy|fee|financ|account|audit/.test(t)) return "Finance";
+  if(/insur|claim|deductible/.test(t)) return "Insurance";
+  if(/bylaw|rule|fine/.test(t)) return "Bylaws";
+  if(/landscap|garden|tree|lawn|leaves|snow/.test(t)) return "Landscaping";
+  if(/agm|minutes|meeting|agenda|notice/.test(t)) return "AGM / meetings";
+  if(/repair|replace|quote|gate|leak|roof|motor|elevator|contractor/.test(t)) return "Repairs";
+  if(/clean|inspect|maint|service|gutter/.test(t)) return "Maintenance";
+  return "Other";
+}
+function extractActions(text, base){
+  const mem = activeMembers();
+  const roles = {president:"President","vice president":"Vice President",treasurer:"Treasurer",secretary:"Secretary"};
+  const namePats = mem.flatMap(m => [m.name, m.name.split(/\s+/)[0]]).filter(Boolean).sort((a,b)=>b.length-a.length).map(escRe);
+  const whoAlt = [...namePats, "the\\s+(?:vice\\s+president|president|treasurer|secretary)", "vice\\s+president","president","treasurer","secretary","pm","property\\s+manager(?:\\s+\\(pm\\))?","council"].join("|");
+  const whoRe = new RegExp(`^(${whoAlt})\\s+(?:to|will|shall|agreed to|is to|has agreed to|volunteered to|needs to)\\s+`, "i");
+  const trailRe = /\(\s*(?:action|owner|assigned(?: to)?|lead)\s*[:\-]?\s*([^)]+)\)\s*\.?\s*$/i;
+  const prefRe = /^(?:action items?|action|todo|to-do|to do|task|follow[- ]?up|next steps?)\s*[:\-–—]\s*/i;
+  function resolve(who){
+    if(!who) return {ownerId:"", pm:false};
+    const w = who.toLowerCase().replace(/^the\s+/,"").replace(/\s+/g," ").trim();
+    if(/^(pm|property manager)/.test(w)) return {ownerId:"", pm:true};
+    if(roles[w]){ const m = mem.find(x=>x.role===roles[w]); return {ownerId: m?m.id:"", pm:false}; }
+    const m = mem.find(x => x.name.toLowerCase()===w) || mem.find(x => x.name.split(/\s+/)[0].toLowerCase()===w.split(" ")[0]);
+    return {ownerId: m?m.id:"", pm:false};
+  }
+  const lines = text.replace(/\r/g,"").split(/\n+/).flatMap(l => l.split(/(?<=[a-z0-9)][.;!])\s+(?=[A-Z\[☐□])/));
+  const out = []; const seen = new Set();
+  for(const raw of lines){
+    const r = raw.trim(); if(r.length < 8) continue;
+    let l = r; let score = 0;
+    if(/^(\[\s?\]|☐|□)/.test(l)){ score += 3; l = l.replace(/^(\[\s?\]|☐|□)\s*/,""); }
+    l = l.replace(/^(?:[•\-*–]+|\d+[.)]|[a-z][.)])\s+/i, "");
+    const p = l.match(prefRe); if(p){ score += 3; l = l.slice(p[0].length); }
+    if(/\bACTION\b/.test(r) && !p) score += 2;
+    let who = "";
+    const t = l.match(trailRe); if(t){ score += 3; who = t[1]; l = l.replace(trailRe, "").trim(); }
+    const w = l.match(whoRe); if(w){ score += 3; who = who || w[1]; }
+    if(score === 0 && /\b(needs to be|need to|must be|should be)\b/i.test(l)) score = 1;
+    if(score === 0) continue;
+    const res = resolve(who);
+    if(w) l = l.slice(w[0].length);
+    if(!res.ownerId && !res.pm){ const m = mem.find(x => new RegExp(`\\b${escRe(x.name.split(/\s+/)[0])}\\b`, "i").test(l)); if(m && score>=3) res.ownerId = m.id; }
+    const d = parseDue(l, base);
+    let title = d.phrase ? l.replace(d.phrase, " ") : l;
+    title = title.replace(/\s{2,}/g," ").replace(/\s+([.,;])/g,"$1").replace(/[\s.,;:]+$/,"").trim();
+    title = title.charAt(0).toUpperCase() + title.slice(1);
+    if(title.length < 4 || seen.has(title.toLowerCase())) continue; seen.add(title.toLowerCase());
+    out.push({title, ownerId: res.pm ? "pm" : res.ownerId, due: d.due, category: guessCategory(title), status: res.pm ? "waiting" : "todo", source: r, sure: score >= 3});
+  }
+  return out;
+}
+const LIBS = {
+  mammoth: "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js",
+  pdf: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+  pdfWorker: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"
+};
+const loadScript = src => new Promise((res, rej) => { if(document.querySelector(`script[src="${src}"]`)) return res(); const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("load")); document.head.appendChild(s); });
+async function readMinutesFile(file){
+  const n = file.name.toLowerCase();
+  if(n.endsWith(".docx")){ await loadScript(LIBS.mammoth); const r = await window.mammoth.extractRawText({arrayBuffer: await file.arrayBuffer()}); return r.value; }
+  if(n.endsWith(".pdf")){
+    await loadScript(LIBS.pdf); const lib = window.pdfjsLib; lib.GlobalWorkerOptions.workerSrc = LIBS.pdfWorker;
+    const doc = await lib.getDocument({data: new Uint8Array(await file.arrayBuffer())}).promise; let txt = "";
+    for(let i=1;i<=doc.numPages;i++){
+      const pg = await doc.getPage(i); const c = await pg.getTextContent(); let lastY = null;
+      for(const it of c.items){ const y = it.transform[5]; if(lastY !== null && Math.abs(y-lastY) > 2) txt += "\n"; txt += it.str; lastY = y; }
+      txt += "\n";
+    }
+    return txt;
+  }
+  if(n.endsWith(".doc")) throw new Error("old-doc");
+  return await file.text();
+}
+let mins = null; // {date, items}
+function minutesModal(){
+  mins = null;
+  openModal(`<h2>Turn meeting minutes into tasks</h2>
+  <form class="form" id="minForm">
+    <label>Meeting date<input id="minDate" type="date" name="date" value="${today()}" required></label>
+    <label>Minutes file<input id="minFile" type="file" accept=".docx,.pdf,.txt,.md,.rtf"></label>
+    <label class="full">Or paste the minutes<textarea id="minText" style="min-height:160px" placeholder="Paste the text of the minutes or your meeting notes"></textarea></label>
+  </form>
+  <p class="sub" style="margin-top:10px">Works best when action items are written like "Action: Priya to circulate budget by Dec 1" or "Alex will review quotes before the next meeting". You'll review everything before any task is created. <button type="button" class="link" data-act="sample-minutes">Try it with sample minutes</button></p>
+  <p class="err" id="minErr" hidden></p>
+  <div class="modal-acts"><div></div><div><button type="button" data-act="close">Cancel</button><button type="button" class="primary" data-act="find-actions">Find action items</button></div></div>`, m => {
+    $("#minFile").addEventListener("change", async ev => {
+      const f = ev.target.files[0]; if(!f) return; const err = $("#minErr"); err.hidden = true;
+      $("#minText").value = "Reading " + f.name + "…";
+      try { $("#minText").value = (await readMinutesFile(f)).trim(); }
+      catch(e){ $("#minText").value = ""; err.hidden = false; err.textContent = e.message === "old-doc" ? "Old .doc files can't be read. Save it as .docx or PDF and try again." : "Couldn't read that file. Try saving it as PDF or .docx, or paste the text instead."; }
+    });
+  });
+}
+function renderReview(){
+  const items = mins.items;
+  const body = items.length ? `<div class="review">${items.map((it,i)=>`<div class="rv ${it.on?"":"off"}">
+      <input type="checkbox" id="rvOn${i}" data-rv="${i}" data-k="on" ${it.on?"checked":""} aria-label="Create this task">
+      <div class="rv-main">
+        <input id="rvTitle${i}" class="rv-title" data-rv="${i}" data-k="title" value="${esc(it.title)}" aria-label="Task">
+        <div class="rv-fields">
+          <select id="rvOwner${i}" data-rv="${i}" data-k="ownerId" aria-label="Owner">${memberOpts(it.ownerId, "Unassigned", true)}</select>
+          <input id="rvDue${i}" type="date" data-rv="${i}" data-k="due" value="${esc(it.due)}" aria-label="Due date">
+          <select id="rvStatus${i}" data-rv="${i}" data-k="status" aria-label="Status">${opts(STATUSES.filter(s=>s[0]!=="done"), it.status)}</select>
+          <select id="rvCat${i}" data-rv="${i}" data-k="category" aria-label="Category">${opts(CATEGORIES.map(c=>[c,c]), it.category)}</select>
+          ${it.sure ? "" : `<span class="pill soon">Maybe</span>`}
+        </div>
+        <div class="rv-src">From the minutes: “${esc(it.source)}”</div>
+      </div></div>`).join("")}</div>`
+    : `<div class="empty">No action items found. Try writing them as "Action: name to do something by date", or add tasks by hand.</div>`;
+  const n = items.filter(x=>x.on).length;
+  $("#modalRoot .modal").innerHTML = `<h2>Review action items</h2>
+    <p class="sub" style="margin-top:-8px;margin-bottom:12px">Found ${items.length} in the minutes of ${fmt(mins.date)}. Untick anything that isn't a task, and fix owners or dates.</p>
+    ${body}
+    <div class="modal-acts"><div><button type="button" data-act="minutes-back">Back</button></div><div><button type="button" data-act="close">Cancel</button><button type="button" class="primary" data-act="create-from-minutes" ${n?"":"disabled"}>Create ${n} task${n===1?"":"s"}</button></div></div>`;
+  $("#modalRoot .modal").classList.add("wide");
+}
+
+/* ---------- ownership ---------- */
+const isOwnerMember = m => !!(m && S.ownerEmail && lc(m.email) === S.ownerEmail);
+const iAmOwner = () => isOwnerMember(member(myMemberId()));
+const ownerMember = () => S.members.find(isOwnerMember);
+function transferModal(){
+  const cur = ownerMember();
+  const choices = activeMembers().filter(m => m.email && !isOwnerMember(m));
+  openModal(`<h2>Transfer ownership</h2>
+  <p class="sub" style="margin-top:-8px">The owner is the one person who can always sign in, can't be removed by others, and is the only one who can hand ownership on. Everyone else keeps the same access they have now.</p>
+  ${choices.length ? `<form class="form" id="xferForm" style="margin-top:14px">
+    <label class="full">New owner<select id="xferTo" name="to" required><option value="">Choose a council member</option>${opts(choices.map(m=>[m.id, `${m.name} (${m.email})`]), "")}</select></label>
+    <label class="check full"><input type="checkbox" id="xferOk" required> I understand that ${cur && cur.id===myMemberId() ? "I" : esc(cur ? cur.name : "the current owner")} will become a regular member and can then be marked as a former member by the new owner.</label>
+  </form>
+  <p class="sub" style="margin-top:12px">This hands over the app. The Firebase project and GitHub site are handed over separately. See "Handing over" in SETUP.md.</p>`
+  : `<div class="empty" style="margin-top:14px">Add another council member with an email address first.</div>`}
+  <div class="modal-acts"><div></div><div><button type="button" data-act="close">Cancel</button>${choices.length?`<button type="button" class="primary" data-act="do-transfer">Transfer ownership</button>`:""}</div></div>`);
+}
+
+/* ---------- @mentions ---------- */
+// Mentions are stored as plain text ("@Priya Sandhu") so notes stay readable anywhere; the full name is matched on save.
+function extractMentions(text){
+  const t = String(text||""); const found = [];
+  for(const m of S.members.slice().sort((a,b)=>b.name.length-a.name.length)){
+    const re = new RegExp(`@${escRe(m.name)}(?![\\w])`, "i");
+    if(re.test(t) && !found.includes(m.id)) found.push(m.id);
+  }
+  return found;
+}
+function renderMentions(text){
+  let html = esc(text); const mine = myMemberId();
+  for(const m of S.members.slice().sort((a,b)=>b.name.length-a.name.length)){
+    html = html.replace(new RegExp(`@${escRe(esc(m.name))}(?![\\w])`, "gi"), x => `<span class="mention ${m.id===mine?"me":""}">${x}</span>`);
+  }
+  return html;
+}
+const mentionNames = ids => ids.map(memberName).join(", ").replace(/, ([^,]*)$/, " and $1");
+let mp = null; // open picker: {ta, start, items, sel}
+function mentionQuery(ta){
+  const before = ta.value.slice(0, ta.selectionStart);
+  const m = before.match(/(?:^|[\s(])@([A-Za-z][\w.'\- ]{0,30})?$/);
+  if(!m) return null;
+  return {q: (m[1]||"").toLowerCase(), start: before.length - (m[1]||"").length - 1};
+}
+function openPicker(ta){
+  const mq = mentionQuery(ta); const box = ta.parentElement.querySelector(".mention-pop");
+  if(!mq || !box){ closePicker(); return; }
+  const items = activeMembers().filter(m => !mq.q || m.name.toLowerCase().startsWith(mq.q) || m.name.toLowerCase().split(/\s+/).some(w=>w.startsWith(mq.q))).slice(0,6);
+  if(!items.length || (mq.q.includes(" ") && !items.some(m=>m.name.toLowerCase().startsWith(mq.q)))){ closePicker(); return; }
+  mp = {ta, start: mq.start, items, sel: mp && mp.ta===ta ? Math.min(mp.sel, items.length-1) : 0, box};
+  box.innerHTML = items.map((m,i)=>`<button type="button" role="option" aria-selected="${i===mp.sel}" data-act="pick-mention" data-mid="${m.id}"><b>${esc(m.name)}</b><span>${esc(m.role||"")}</span></button>`).join("");
+  box.hidden = false;
+}
+function closePicker(){ if(mp && mp.box) mp.box.hidden = true; mp = null; }
+function pickMention(id){
+  if(!mp) return; const m = member(id); const ta = mp.ta;
+  const after = ta.value.slice(ta.selectionStart);
+  const ins = "@" + m.name + " ";
+  ta.value = ta.value.slice(0, mp.start) + ins + after.replace(/^[\w.'\-]*/, "");
+  const pos = mp.start + ins.length; closePicker(); ta.focus(); ta.setSelectionRange(pos, pos);
+}
+function wireMentions(root){
+  root.querySelectorAll(".mention-pop").forEach(p => p.addEventListener("mousedown", e => e.preventDefault()));
+  root.querySelectorAll("textarea[data-mentions]").forEach(ta => {
+    ta.addEventListener("input", () => openPicker(ta));
+    ta.addEventListener("click", () => openPicker(ta));
+    ta.addEventListener("blur", () => setTimeout(() => { if(mp && mp.ta===ta && document.activeElement && !document.activeElement.closest(".mention-pop")) closePicker(); }, 150));
+    ta.addEventListener("keydown", ev => {
+      if(!mp || mp.ta !== ta) return;
+      if(ev.key==="ArrowDown"||ev.key==="ArrowUp"){ ev.preventDefault(); mp.sel = (mp.sel + (ev.key==="ArrowDown"?1:-1) + mp.items.length) % mp.items.length; openPicker(ta); }
+      else if(ev.key==="Enter"||ev.key==="Tab"){ ev.preventDefault(); pickMention(mp.items[mp.sel].id); }
+      else if(ev.key==="Escape"){ ev.preventDefault(); ev.stopPropagation(); closePicker(); }
+    });
+  });
+}
+
+/* ---------- comments on tasks ---------- */
+const COMMENT_KINDS = [["comment","Comment"],["question","Question"],["update","Status update"]];
+const nowIso = () => new Date().toISOString();
+function ago(isoTs){
+  const s = (Date.now() - new Date(isoTs).getTime()) / 1000;
+  if(s < 60) return "just now"; if(s < 3600) return `${Math.floor(s/60)} min ago`;
+  if(s < 86400) return `${Math.floor(s/3600)} h ago`; if(s < 86400*7) return `${Math.floor(s/86400)} d ago`;
+  return fmt(isoTs.slice(0,10));
+}
+const taskComments = id => S.comments.filter(c=>c.taskId===id).sort((a,b)=>b.at.localeCompare(a.at));
+const commentSection = () => `<div class="full discuss">
+    <b>Discussion</b>
+    ${mf && mf.isNew ? `<p class="sub" style="margin:0;font-size:13px">Save the task first, then the council can comment on it.</p>` : `
+    <div class="composer">
+      <span class="mention-wrap"><textarea id="cmText" data-mentions placeholder="Ask a question or post an update. Type @ to tag someone." rows="2"></textarea><span class="mention-pop" role="listbox" hidden></span></span>
+      <div class="composer-row"><select id="cmKind" aria-label="Type of comment">${opts(COMMENT_KINDS,"comment")}</select><button type="button" class="primary small" data-act="post-comment">Post</button></div>
+    </div>`}
+    <div id="commentList" class="comments"></div>
+  </div>`;
+function renderComments(){
+  const el = $("#commentList"); if(!el || !mf || mf.isNew) return;
+  const list = taskComments(mf.taskId); const mine = myMemberId();
+  el.innerHTML = list.length ? list.map(c => `<div class="cm">
+      <div class="cm-head"><b>${esc(c.byId===mine?"You":memberName(c.byId))}</b>${c.kind!=="comment"?`<span class="pill ${c.kind==="question"?"soon":"acc"}">${c.kind==="question"?"Question":"Status update"}</span>`:""}<span class="meta" title="${esc(new Date(c.at).toLocaleString())}">${ago(c.at)}${c.edited?" · edited":""}</span>
+        ${c.byId===mine ? `<span class="cm-acts"><button type="button" class="link" data-act="ask-rmcomment">Delete</button><span data-confirm hidden><button type="button" class="link" style="color:var(--late)" data-act="rmcomment" data-cid="${c.id}">Delete comment</button> · <button type="button" class="link" data-act="cancel-delete">Keep</button></span></span>` : ""}</div>
+      <div class="cm-body">${renderMentions(c.text)}</div></div>`).join("")
+    : `<p class="sub" style="margin:0;font-size:13px">No comments yet.</p>`;
+  el.scrollTop = 0;
+}
+
+/* ---------- activity feed and notifications ---------- */
+function logActivity(ev){
+  const doc = {...ev, at: nowIso(), byId: myMemberId()};
+  Object.keys(doc).forEach(k => doc[k] === undefined && delete doc[k]);
+  store.set("activity", uid(), doc).catch(()=>{});
+}
+let reads = {read:{}, unread:{}, allReadBefore:""};
+function readsDocId(){ return demo() ? "preview" : lc(me && me.email); }
+function saveReads(){
+  // keep the map small: anything older than allReadBefore no longer needs an entry
+  for(const k of Object.keys(reads.read)) if(!notifIndex[k] || (reads.allReadBefore && notifIndex[k].at <= reads.allReadBefore)) delete reads.read[k];
+  if(demo()){ renderBell(); return; }
+  fdb.collection("notif").doc(readsDocId()).set(reads).catch(e => console.error(e));
+  renderBell();
+}
+let notifIndex = {};
+function buildNotifications(){
+  const mine = myMemberId(); const out = [];
+  const nameOf = id => id===mine ? "You" : memberName(id);
+  for(const a of S.activity){
+    const t = a.taskId ? S.tasks.find(x=>x.id===a.taskId) : null;
+    const forMe = a.byId !== mine && ((a.forIds||[]).includes(mine) || (t && t.ownerId === mine));
+    const tagged = (a.mentions||[]).includes(mine) && a.byId !== mine;
+    const mentioned = tagged && (a.type === "comment" || a.type === "mention");
+    out.push({id:"a:"+a.id, at:a.at, own: a.byId===mine, forMe, mentioned, kind:a.type, text:`<b>${esc(nameOf(a.byId))}</b> ${esc(tagged && a.textYou ? a.textYou : a.text)}`, taskId:a.taskId, contactId:a.contactId});
+  }
+  // reminders the app works out from dates
+  for(const c of S.contacts.filter(fuLate)) out.push({id:`fu:${c.id}:${c.followUpDate}`, at:c.followUpDate+"T08:00:00", forMe: c.byId===mine, kind:"overdue", text:`Follow-up overdue: <b>${esc(c.subject)}</b> (was due ${fmt(c.followUpDate)})`, contactId:c.id});
+  for(const t of S.tasks.filter(t=>t.ownerId===mine && t.status!=="done" && t.due && daysBetween(today(), t.due) <= 2))
+    out.push({id:`due:${t.id}:${t.due}`, at:(t.due < today() ? t.due : today())+"T08:00:00", forMe:true, kind:"due", text:`Your task <b>${esc(t.title)}</b> ${taskLate(t) ? `was due ${fmt(t.due)}` : t.due===today() ? "is due today" : `is due ${fmt(t.due)}`}`, taskId:t.id});
+  out.sort((a,b)=>b.at.localeCompare(a.at));
+  notifIndex = Object.fromEntries(out.map(n=>[n.id,n]));
+  return out.slice(0, 60);
+}
+const isRead = n => n.own || (reads.unread[n.id] ? false : !!(reads.read[n.id] || (reads.allReadBefore && n.at <= reads.allReadBefore)));
+let bellOpen = false, bellFilter = "all";
+function renderBell(){
+  const list = buildNotifications();
+  const unread = list.filter(n=>!isRead(n)).length;
+  $("#bellCount").textContent = unread > 99 ? "99+" : unread; $("#bellCount").hidden = !unread;
+  $("#bellBtn").setAttribute("aria-label", `Notifications, ${unread} unread`);
+  if(!bellOpen) return;
+  const shown = bellFilter === "me" ? list.filter(n=>n.forMe) : bellFilter === "unread" ? list.filter(n=>!isRead(n)) : list;
+  $("#bellPanel").innerHTML = `<div class="np-head"><b>Notifications</b>${unread?`<button type="button" class="link" data-act="notif-all-read">Mark all as read</button>`:""}</div>
+    <div class="np-tabs" role="tablist">${[["all","All"],["unread",`Unread${unread?` (${unread})`:""}`],["me","For me"]].map(([k,l])=>`<button type="button" role="tab" aria-selected="${bellFilter===k}" data-act="notif-filter" data-f="${k}">${l}</button>`).join("")}</div>
+    <div class="np-list">${shown.length ? shown.map(n => `<div class="np-item ${isRead(n)?"":"unread"} ${n.kind==="overdue"?"late":""}">
+        <button type="button" class="np-main" data-act="notif-open" data-nid="${esc(n.id)}"><span class="np-dot" aria-hidden="true"></span><span class="np-text">${n.text}<span class="np-meta">${ago(n.at)}${n.mentioned?' · <span class="pill acc">@ Mentioned you</span>':n.forMe?' · <span class="pill acc">For you</span>':""}</span></span></button>
+        ${n.own ? "" : `<button type="button" class="np-toggle" data-act="notif-toggle" data-nid="${esc(n.id)}" title="${isRead(n)?"Mark as unread":"Mark as read"}" aria-label="${isRead(n)?"Mark as unread":"Mark as read"}">${isRead(n)?"○":"●"}</button>`}
+      </div>`).join("") : `<p class="sub" style="padding:16px;margin:0;text-align:center">${bellFilter==="unread"?"You're all caught up.":"Nothing here yet."}</p>`}</div>`;
+}
+function markRead(id, read){
+  if(read){ reads.read[id] = true; delete reads.unread[id]; }
+  else { reads.unread[id] = true; delete reads.read[id]; }
+  saveReads();
+}
+function toggleBell(open){
+  bellOpen = open === undefined ? !bellOpen : open;
+  $("#bellPanel").hidden = !bellOpen; $("#bellBtn").setAttribute("aria-expanded", bellOpen);
+  renderBell();
+}
+
+/* ---------- actions ---------- */
+async function copyText(txt, el){
+  try { await navigator.clipboard.writeText(txt); toast("Copied"); }
+  catch(e){ if(el){ const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } toast("Select the text and copy it manually"); }
+}
+
+document.addEventListener("click", async ev => {
+  if(ev.target.matches("[data-scrim]")){ closeModal(); return; }
+  if(ev.target.closest("#bellBtn")){ toggleBell(); return; }
+  if(bellOpen && !ev.target.closest("#bellPanel")) toggleBell(false);
+  const b = ev.target.closest("[data-act]"); if(!b) return;
+  const id = b.dataset.id, act = b.dataset.act;
+  switch(act){
+    case "close": closeModal(); break;
+    case "new-task": taskModal(); break;
+    case "edit-task": taskModal(S.tasks.find(t=>t.id===id)); break;
+    case "new-contact": contactModal(); break;
+    case "edit-contact": contactModal(S.contacts.find(c=>c.id===id)); break;
+    case "new-member": memberModal(); break;
+    case "edit-member": memberModal(S.members.find(m=>m.id===id)); break;
+    case "edit-pm": pmModal(); break;
+    case "draft": draftModal(S.contacts.find(c=>c.id===id)); break;
+    case "copy": copyText(b.dataset.text); break;
+    case "copy-draft": copyText($("#draftText").textContent, $("#draftText")); break;
+    case "ask-delete": b.hidden = true; b.nextElementSibling.hidden = false; break;
+    case "cancel-delete": { const w = b.closest("[data-confirm]"); w.hidden = true; w.previousElementSibling.hidden = false; break; }
+    case "do-delete": if(await store.del(b.dataset.kind, id)){ closeModal(); toast("Deleted"); } break;
+    case "ask-rmfile": b.hidden = true; b.nextElementSibling.hidden = false; break;
+    case "rmfile": {
+      const f = mf.files.find(x=>x.id===b.dataset.fid); if(!f) break;
+      try { await files.remove(f); } catch(e){ toast("Couldn't remove that file. Try again."); break; }
+      mf.files = mf.files.filter(x=>x!==f); renderFileList(); await persistFiles(); toast("File removed"); break;
+    }
+    case "import-minutes": minutesModal(); break;
+    case "sample-minutes": $("#minText").value = SAMPLE_MINUTES; $("#minDate").value = "2026-11-18"; break;
+    case "find-actions": {
+      const txt = $("#minText").value.trim(); const date = $("#minDate").value || today();
+      if(!txt || /^Reading /.test(txt)){ const e=$("#minErr"); e.hidden=false; e.textContent="Choose a file or paste the minutes first."; break; }
+      mins = {date, text: txt, items: extractActions(txt, date).map(x=>({...x, on:x.sure}))};
+      renderReview(); break;
+    }
+    case "minutes-back": { const keep = mins; minutesModal(); $("#minText").value = keep.text; $("#minDate").value = keep.date; break; }
+    case "create-from-minutes": {
+      const chosen = mins.items.filter(x=>x.on && x.title.trim());
+      const writes = chosen.map(x => ({coll:"tasks", id:uid(), data:{title:x.title.trim(), ownerId:x.ownerId, status:x.status, due:x.due, category:x.category, notes:`From council minutes of ${fmt(mins.date)}:\n“${x.source}”`, created:today(), fromMinutes:mins.date}}));
+      if(await store.many(writes)){
+        closeModal(); toast(`${writes.length} task${writes.length===1?"":"s"} created from the minutes`); location.hash = "tasks";
+        logActivity({type:"task", text:`created ${writes.length} task${writes.length===1?"":"s"} from the minutes of ${fmt(mins.date)}`, forIds:[...new Set(writes.map(w=>w.data.ownerId).filter(x=>x && x!=="pm"))]});
+      }
+      break;
+    }
+    case "transfer": transferModal(); break;
+    case "do-transfer": {
+      const f = $("#xferForm"); if(!f.reportValidity()) return;
+      const to = member($("#xferTo").value); if(!to) return;
+      const prev = S.ownerEmail;
+      if(await store.set("settings", "ownership", {ownerEmail: lc(to.email), since: today(), previous: prev})){
+        closeModal(); toast(`${to.name} is now the owner`);
+        logActivity({type:"member", text:`transferred ownership of the tracker to ${to.name}`, textYou:"made you the owner of the tracker", mentions:[to.id], forIds:[to.id]});
+      }
+      break;
+    }
+    case "pick-mention": pickMention(b.dataset.mid); break;
+    case "post-comment": {
+      const text = $("#cmText").value.trim(); if(!text){ $("#cmText").focus(); return; }
+      const kind = $("#cmKind").value; const t = S.tasks.find(x=>x.id===mf.taskId);
+      b.disabled = true;
+      const ok = await store.set("comments", uid(), {taskId: mf.taskId, byId: myMemberId(), text, kind, at: nowIso()});
+      b.disabled = false;
+      if(ok){
+        $("#cmText").value = ""; $("#cmKind").value = "comment"; renderComments();
+        const word = kind==="question" ? "asked a question on" : kind==="update" ? "posted a status update on" : "commented on";
+        const snip = text.length > 90 ? text.slice(0,90)+"…" : text; const title = t ? t.title : "a task";
+        const tagged = extractMentions(text).filter(x => x !== myMemberId());
+        logActivity({type:"comment", text:`${word} "${title}": ${snip}`, textYou: tagged.length ? `mentioned you on "${title}": ${snip}` : undefined, mentions: tagged.length ? tagged : undefined, taskId: mf.taskId, forIds: [...new Set([...(t && t.ownerId && t.ownerId!=="pm" ? [t.ownerId] : []), ...tagged])]});
+      }
+      break;
+    }
+    case "ask-rmcomment": b.hidden = true; b.nextElementSibling.hidden = false; break;
+    case "rmcomment": if(await store.del("comments", b.dataset.cid)){ renderComments(); toast("Comment deleted"); } break;
+    case "notif-filter": bellFilter = b.dataset.f; renderBell(); break;
+    case "notif-all-read": { const latest = buildNotifications().reduce((m,n)=> n.at > m ? n.at : m, nowIso()); reads = {read:{}, unread:{}, allReadBefore: latest}; saveReads(); break; }
+    case "notif-toggle": { const n = notifIndex[b.dataset.nid]; if(n) markRead(n.id, !isRead(n)); break; }
+    case "notif-open": {
+      const n = notifIndex[b.dataset.nid]; if(!n) break;
+      if(!isRead(n)) markRead(n.id, true);
+      toggleBell(false);
+      const t = n.taskId && S.tasks.find(x=>x.id===n.taskId); const c = n.contactId && S.contacts.find(x=>x.id===n.contactId);
+      if(t) taskModal(t); else if(c) contactModal(c); else toast("That item no longer exists");
+      break;
+    }
+    case "answer": answerModal(S.contacts.find(c=>c.id===id)); break;
+    case "save-answer": {
+      const c = S.contacts.find(x=>x.id===id); const before = clean(c);
+      const outcome = $("#ansText").value.trim(); const ts = $("#ansTask") ? $("#ansTask").value : "";
+      const hist = (c.history||[]).concat([{type:"answer", date:today(), byId:myMemberId(), note:outcome}]);
+      const task = c.taskId ? S.tasks.find(t=>t.id===c.taskId) : null; const taskBefore = task ? clean(task) : null;
+      const writes = [{coll:"contacts", id, data:{...before, followUpDone:true, answeredOn:today(), outcome, history:hist}}];
+      if(task && ts) writes.push({coll:"tasks", id:task.id, data:{...taskBefore, status:ts}});
+      if(await store.many(writes)){
+        closeModal();
+        logActivity({type:"pm", text:`recorded the PM's answer on "${c.subject}"`, contactId:id, taskId:c.taskId||undefined, forIds: c.byId ? [c.byId] : []});
+        toast(filt.pmShow==="open" ? "Marked as answered. Find it under All contacts." : "Marked as answered", {label:"Undo", fn: () => store.many([{coll:"contacts", id, data:before}].concat(task && ts ? [{coll:"tasks", id:task.id, data:taskBefore}] : []))});
+      }
+      break;
+    }
+    case "log-chase": {
+      const f = $("#chaseForm"); if(!f.reportValidity()) return;
+      const c = S.contacts.find(x=>x.id===id); const d = formData(f);
+      const hist = (c.history||[]).concat([{type:"chase", date:today(), method:d.method, byId:myMemberId(), note:d.note.trim()}]);
+      if(await store.set("contacts", id, {...clean(c), followUpDate:d.next, history:hist})){ closeModal(); toast(`Chase logged. Next follow-up ${fmt(d.next)}.`); logActivity({type:"pm", text:`chased the PM about "${c.subject}" (next follow-up ${fmt(d.next)})`, contactId:id, forIds: c.byId ? [c.byId] : []}); }
+      break;
+    }
+    case "save-task": {
+      const f = $("#taskForm"); if(!f.reportValidity()) return;
+      if(mf && mf.uploads.some(u=>!u.error)){ toast("Wait for uploads to finish"); return; }
+      const d = formData(f); const prev = id ? clean(S.tasks.find(t=>t.id===id)) : {created:today()};
+      if(mf) d.files = mf.files;
+      const tid = id || mf.taskId;
+      if(await store.set("tasks", tid, {...prev, ...d})){
+        mf = null; closeModal(); toast(id?"Task saved":"Task added");
+        const owner = d.ownerId && d.ownerId !== "pm" ? d.ownerId : "";
+        if(!id) logActivity({type:"task", text:`added a task: "${d.title}"${d.ownerId?` for ${memberName(d.ownerId)}`:""}`, taskId:tid, forIds: owner ? [owner] : []});
+        else {
+          if(prev.ownerId !== d.ownerId && d.ownerId) logActivity({type:"task", text:`assigned "${d.title}" to ${memberName(d.ownerId)}`, taskId:tid, forIds: owner ? [owner] : []});
+          if(prev.status !== d.status) logActivity({type:"task", text:`moved "${d.title}" to ${statusLabel(d.status)}`, taskId:tid});
+        }
+        const before = new Set(extractMentions(prev.notes)); const tagged = extractMentions(d.notes).filter(x => !before.has(x) && x !== myMemberId());
+        if(tagged.length) logActivity({type:"mention", text:`tagged ${mentionNames(tagged)} in "${d.title}"`, textYou:`tagged you in "${d.title}"`, mentions: tagged, taskId:tid, forIds: tagged});
+      }
+      break;
+    }
+    case "save-contact": {
+      const f = $("#contactForm"); if(!f.reportValidity()) return;
+      const d = formData(f); d.followUpDone = $("#cDone").checked;
+      const prev = id ? clean(S.contacts.find(c=>c.id===id)) : {};
+      const cid = id || uid();
+      if(await store.set("contacts", cid, {...prev, ...d})){ closeModal(); toast(id?"Contact saved":"Contact logged"); if(!id) logActivity({type:"pm", text:`logged a ${d.method==="phone"?"call":"email"} to the PM: "${d.subject}"`, contactId:cid}); }
+      break;
+    }
+    case "save-member": {
+      const f = $("#memberForm"); if(!f.reportValidity()) return;
+      const d = formData(f); const prev = id ? clean(S.members.find(m=>m.id===id)) : {active:true};
+      const dupe = S.members.find(m => m.id !== id && lc(m.email) === lc(d.email));
+      if(dupe){ toast(`${dupe.name} already uses that email.`); return; }
+      if(id && lc(prev.email) === lc(me.email) && lc(d.email) !== lc(me.email)){ toast("You can't change your own sign-in email here. Ask another member to do it."); return; }
+      if(await store.saveMember(id || uid(), {...prev, ...d}, id ? prev : null)){ closeModal(); toast(id?"Member saved":"Member added"); if(!id) logActivity({type:"member", text:`added ${d.name} to the council`}); }
+      break;
+    }
+    case "retire-member": case "restore-member": {
+      const m = S.members.find(x=>x.id===id);
+      if(act==="retire-member" && isOwnerMember(m)){ toast("Transfer ownership before marking the owner as a former member."); return; }
+      if(act==="retire-member" && m.id === myMemberId()){ toast("You can't remove yourself. Ask another member to do it."); return; }
+      if(await store.saveMember(id, {...clean(m), active: act==="restore-member"}, clean(m))){ closeModal(); toast(act==="restore-member"?"Restored to council":"Moved to former members"); }
+      break;
+    }
+    case "save-pm": {
+      const d = formData($("#pmForm"));
+      if(await store.set("settings", "pm", d)){ closeModal(); toast("Property manager details saved"); }
+      break;
+    }
+    case "load-examples": b.disabled = true; await loadExamples(); break;
+    case "clear-examples": {
+      b.disabled = true;
+      for(const coll of ["contacts","tasks","members"]) for(const r of S[coll].filter(x=>x.example)) await store.del(coll, r.id);
+      if(S.pm.example) await store.set("settings","pm",{});
+      toast("Example data removed");
+      break;
+    }
+  }
+});
+document.addEventListener("keydown", ev => {
+  if(ev.key==="Escape" && bellOpen){ toggleBell(false); $("#bellBtn").focus(); return; }
+  if(ev.key==="Escape" && $("#modalRoot").innerHTML) closeModal();
+  if((ev.key==="Enter"||ev.key===" ") && ev.target.matches(".card[data-act]")){ ev.preventDefault(); ev.target.click(); }
+});
+document.addEventListener("input", ev => {
+  const i = ev.target.dataset && ev.target.dataset.rv; if(i === undefined || !mins) return;
+  const k = ev.target.dataset.k; mins.items[+i][k] = k === "on" ? ev.target.checked : ev.target.value;
+  if(k === "on"){ ev.target.closest(".rv").classList.toggle("off", !ev.target.checked); const n = mins.items.filter(x=>x.on).length; const btn = $('[data-act="create-from-minutes"]'); btn.textContent = `Create ${n} task${n===1?"":"s"}`; btn.disabled = !n; }
+});
+document.addEventListener("change", ev => {
+  if(ev.target.dataset && ev.target.dataset.rv !== undefined){ const k = ev.target.dataset.k; if(k !== "on" && mins) mins.items[+ev.target.dataset.rv][k] = ev.target.value; return; }
+  const id = ev.target.id;
+  if(id==="fOwner") filt.owner = ev.target.value;
+  else if(id==="fCat") filt.cat = ev.target.value;
+  else if(id==="fLayout") filt.layout = ev.target.value;
+  else if(id==="fPm") filt.pmShow = ev.target.value;
+  else return;
+  saveFilters(); render();
+});
+$("#quickAdd").addEventListener("click", () => contactModal());
+
+boot();
+})();
+</script>
+</body>
+</html>
