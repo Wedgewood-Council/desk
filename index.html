@@ -181,6 +181,15 @@ pre.draft{white-space:pre-wrap;font-family:var(--body);background:var(--bg);bord
 .vote-head .meta{font-size:13px;color:var(--muted)}
 .pill.big{font-size:13px;padding:3px 10px}
 .vote-details{font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--fg)}
+.done-votes{margin-top:28px}
+.done-votes>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.done-votes>summary::-webkit-details-marker{display:none}
+.done-votes>summary::before{content:"\25B8";color:var(--muted);transition:transform .15s}
+.done-votes[open]>summary::before{transform:rotate(90deg)}
+.done-votes>summary h3{margin:0}
+.done-votes>summary .count{color:var(--muted);font-weight:400}
+.done-votes>summary .sub{margin-left:auto;color:var(--accent);font-size:14px}
+.done-votes>.votes{margin-top:8px}
 .ballot{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .ballot button:not(.link){min-width:96px;font-weight:600}
 .ov-vote{padding:12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
@@ -1386,12 +1395,13 @@ function voteCard(v){
       ${closed ? `<button type="button" class="small" data-act="vote-task" data-vid="${v.id}">Create follow-up task</button>` : ""}</span></div>
   </article>`;
 }
+let showDoneVotes = false;
 function viewVotes(){
   const open = S.votes.filter(v=>!voteClosed(v)).sort((a,b)=>(a.closesAtIso||"").localeCompare(b.closesAtIso||""));
   const closed = S.votes.filter(voteClosed).sort((a,b)=>(b.closedAt||b.closesAtIso||"").localeCompare(a.closedAt||a.closesAtIso||""));
   return `<div class="section-head"><div><h2>Votes</h2><p class="sub">Council decisions between meetings. Everyone sees who voted and how, so results can go straight into the minutes.</p></div>${ro()?"":`<button class="primary" data-act="new-vote">New vote</button>`}</div>
   ${open.length ? `<div class="votes">${open.map(voteCard).join("")}</div>` : `<div class="empty">No open votes. Use <b>New vote</b> to put a motion to council, like "Approve the $4,200 gate motor quote".</div>`}
-  ${closed.length ? `<h3 style="margin-top:28px">Decided</h3><div class="votes">${closed.map(voteCard).join("")}</div>` : ""}`;
+  ${closed.length ? `<details class="done-votes" id="doneVotes" ${showDoneVotes?"open":""}><summary><h3>Completed Votes <span class="count">(${closed.length})</span></h3><span class="sub">${showDoneVotes?"Hide":"Show"}</span></summary><div class="votes">${closed.map(voteCard).join("")}</div></details>` : ""}`;
 }
 function voteModal(){
   openModal(`<h2>New vote</h2>
@@ -1878,6 +1888,7 @@ document.addEventListener("click", async ev => {
     }
   }
 });
+document.addEventListener("toggle", ev => { if(ev.target.id === "doneVotes"){ showDoneVotes = ev.target.open; const t = ev.target.querySelector("summary .sub"); if(t) t.textContent = showDoneVotes ? "Hide" : "Show"; } }, true);
 document.addEventListener("keydown", ev => {
   if(ev.key==="Escape" && bellOpen){ toggleBell(false); $("#bellBtn").focus(); return; }
   if(ev.key==="Escape" && $("#modalRoot").innerHTML) closeModal();
