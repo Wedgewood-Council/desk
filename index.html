@@ -187,6 +187,8 @@ pre.draft{white-space:pre-wrap;font-family:var(--body);background:var(--bg);bord
 .ov-vote:first-child{border-top:none;padding-top:0}
 .ov-vote .ballot button:not(.link){min-width:0;padding:5px 12px;font-size:13px}
 .row.clickable{cursor:pointer;border-radius:6px}
+.tile.clickable{cursor:pointer;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s}
+.tile.clickable:hover,.tile.clickable:focus-visible{border-color:var(--accent);box-shadow:0 1px 6px rgba(0,0,0,.08)}
 .you-tag{font-weight:400;font-size:13px;color:var(--muted)}
 .ov-vote .meta,.mp-task .meta{font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;margin-top:4px}
 .mp-flag .meta{font-size:13px;color:var(--muted)}
@@ -690,7 +692,7 @@ function render(){
   if(S.mode === "loading"){ return; }
   const html = v==="tasks" ? viewTasks() : v==="pm" ? viewPM() : v==="votes" ? viewVotes() : v==="contractors" ? viewContractors() : v==="members" ? viewMembers() : viewOverview();
   $("#view").innerHTML = html;
-  if(mpOpen && $("#mpBody")) $("#mpBody").innerHTML = memberPanelBody(mpOpen);
+  if(mpOpen && $("#mpBody")) $("#mpBody").innerHTML = mpOpen();
   const f = $("#view [data-filter-root]"); if(f) restoreFilters();
   renderBell(); renderComments();
 }
@@ -720,10 +722,10 @@ function viewOverview(){
   const max = Math.max(1, ...counts.map(c=>c.n));
   return `
   <div class="tiles">
-    <div class="tile ${lateFU.length+latePmT.length?"late":""}"><b>${lateFU.length+latePmT.length}</b><span>Property Manager items overdue${lateFU.length && latePmT.length?` <small>(${lateFU.length} follow-up${lateFU.length===1?"":"s"}, ${latePmT.length} task${latePmT.length===1?"":"s"})</small>`:""}</span></div>
-    <div class="tile ${lateT.length?"late":""}"><b>${lateT.length}</b><span>Tasks overdue</span></div>
-    <div class="tile"><b>${openT.length}</b><span>Open tasks</span></div>
-    <div class="tile"><b>${act.length}</b><span>Council members</span></div>
+    <div class="tile clickable ${lateFU.length+latePmT.length?"late":""}" role="button" tabindex="0" data-act="tile" data-id="pm" title="Show these"><b>${lateFU.length+latePmT.length}</b><span>Property Manager items overdue${lateFU.length && latePmT.length?` <small>(${lateFU.length} follow-up${lateFU.length===1?"":"s"}, ${latePmT.length} task${latePmT.length===1?"":"s"})</small>`:""}</span></div>
+    <div class="tile clickable ${lateT.length?"late":""}" role="button" tabindex="0" data-act="tile" data-id="late" title="Show these"><b>${lateT.length}</b><span>Tasks overdue</span></div>
+    <div class="tile clickable" role="button" tabindex="0" data-act="tile" data-id="open" title="Show these"><b>${openT.length}</b><span>Open tasks</span></div>
+    <a class="tile clickable" href="#members" title="Go to Members"><b>${act.length}</b><span>Council members</span></a>
   </div>
   <div class="grid2">
     <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
@@ -757,20 +759,40 @@ function ovVote(v){
     <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">${ballotButtons(v)}<button type="button" class="small" data-act="goto-vote" data-vid="${v.id}">View vote</button></div></div>`;
 }
 let mpOpen = null;
+function mpTaskRow(t, showOwner){
+  const ds = dueState(t.due, false);
+  return `<div class="mp-task"><div style="min-width:0"><div class="title">${isPmTask(t)?'<span class="pm-tag">PM</span> ':""}${esc(t.title)}${exPill(t)}</div><div class="meta">${showOwner?`<span>${esc(memberName(t.ownerId))}</span>`:""}${t.due?`<span class="date">Due ${fmt(t.due)}</span>`:"<span>No due date</span>"}${ds?`<span class="pill ${ds.cls}">${ds.text}</span>`:""}${t.category?`<span>${esc(t.category)}</span>`:""}${cmCount(t)}</div></div>
+    <div class="acts">${ro()?`<span class="pill">${statusLabel(t.status)}</span>`:`<select data-qs="${t.id}" aria-label="Status of ${esc(t.title)}">${opts(STATUSES, t.status)}</select><button type="button" class="small" data-act="edit-task" data-id="${t.id}">Open</button>`}</div></div>`;
+}
+const byDue = (a,b) => (a.due||"9999").localeCompare(b.due||"9999");
+function tileBody(kind){
+  const lateT = S.tasks.filter(taskLate).sort(byDue);
+  if(kind === "pm"){
+    const fu = S.contacts.filter(fuLate).sort((a,b)=>a.followUpDate.localeCompare(b.followUpDate)); const pt = lateT.filter(pmRelated);
+    if(!fu.length && !pt.length) return `<div class="empty">Nothing with the Property Manager is overdue.</div>`;
+    return `${fu.length?`<h3 style="margin:0 0 4px">Follow-ups past their date (${fu.length})</h3><div class="list" style="margin-bottom:16px">${fu.map(c=>contactRow(c,false)).join("")}</div>`:""}${pt.length?`<h3 style="margin:0 0 4px">Overdue tasks with the Property Manager (${pt.length})</h3><div>${pt.map(t=>mpTaskRow(t,true)).join("")}</div>`:""}`;
+  }
+  const list = kind === "late" ? lateT : S.tasks.filter(t=>t.status!=="done").sort((a,b)=>(taskLate(b)-taskLate(a)) || byDue(a,b));
+  return list.length ? `<div>${list.map(t=>mpTaskRow(t,true)).join("")}</div>` : `<div class="empty">${kind==="late"?"No overdue tasks.":"No open tasks."}</div>`;
+}
+function tileModal(kind){
+  const title = {pm:"Property Manager items overdue", late:"Overdue tasks", open:"Open tasks"}[kind];
+  openModal(`<h2>${title}</h2><p class="sub" style="margin-top:-8px;margin-bottom:14px">${kind==="pm"?"Chase or record an answer, or change a task's status here.":"Change a status here, or open a task for the details."}</p><div id="mpBody">${tileBody(kind)}</div><div class="modal-acts"><div></div><div><button type="button" data-act="close">Close</button></div></div>`);
+  mpOpen = () => tileBody(kind);
+}
 function memberPanelBody(mid){
   const m = member(mid); if(!m) return `<div class="empty">This member is no longer on council.</div>`;
   const me = mid === myMemberId(); const first = me ? "you" : esc(m.name.split(" ")[0]);
   const tasks = S.tasks.filter(t=>t.ownerId===mid && t.status!=="done").sort((a,b)=>(taskLate(b)-taskLate(a)) || (a.due||"9999").localeCompare(b.due||"9999"));
   const pv = votesAwaiting(mid);
   const flag = pv.length ? `<div class="mp-flag"><h3>${pv.length} open vote${pv.length===1?"":"s"} waiting on ${first}</h3>${pv.map(v=>`<div style="padding:6px 0;display:flex;flex-direction:column;gap:6px"><div><b>${esc(v.title)}</b> <span class="meta">· closes ${voteCloses(v)}</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">${me?ballotButtons(v):`<span class="meta">${esc(m.name.split(" ")[0])} hasn't voted yet.</span>`}<button type="button" class="small" data-act="goto-vote" data-vid="${v.id}">View vote</button></div></div>`).join("")}</div>` : "";
-  const rows = tasks.map(t => { const ds = dueState(t.due, false); return `<div class="mp-task"><div style="min-width:0"><div class="title">${esc(t.title)}${exPill(t)}</div><div class="meta">${t.due?`<span class="date">Due ${fmt(t.due)}</span>`:"<span>No due date</span>"}${ds?`<span class="pill ${ds.cls}">${ds.text}</span>`:""}${t.category?`<span>${esc(t.category)}</span>`:""}${cmCount(t)}</div></div>
-    <div class="acts">${ro()?`<span class="pill">${statusLabel(t.status)}</span>`:`<select data-qs="${t.id}" aria-label="Status of ${esc(t.title)}">${opts(STATUSES, t.status)}</select><button type="button" class="small" data-act="edit-task" data-id="${t.id}">Open</button>`}</div></div>`; }).join("");
+  const rows = tasks.map(t=>mpTaskRow(t,false)).join("");
   return `${flag}<h3 style="margin:0 0 4px">${tasks.length} open task${tasks.length===1?"":"s"}</h3>${tasks.length ? `<div>${rows}</div>` : `<div class="empty">${me?"You have":`${esc(m.name.split(" ")[0])} has`} no open tasks.</div>`}`;
 }
 function memberTasksModal(mid){
   const m = member(mid); if(!m) return;
   openModal(`<h2>${mid===myMemberId()?"Your tasks and votes":esc(m.name)}</h2><p class="sub" style="margin-top:-8px;margin-bottom:14px">${esc(roleName(m.role)||"")}${mid===myMemberId()?"":` · change a status here, or open a task for the details`}</p><div id="mpBody">${memberPanelBody(mid)}</div><div class="modal-acts"><div></div><div><button type="button" data-act="close">Close</button></div></div>`);
-  mpOpen = mid;
+  mpOpen = () => memberPanelBody(mid);
 }
 
 function taskRow(t){
@@ -1614,6 +1636,7 @@ document.addEventListener("click", async ev => {
     case "new-task": taskModal(); break;
     case "edit-task": taskModal(S.tasks.find(t=>t.id===id)); break;
     case "member-tasks": memberTasksModal(id); break;
+    case "tile": tileModal(id); break;
     case "goto-vote": { const vid = b.dataset.vid; closeModal(); if(location.hash !== "#votes") location.hash = "#votes"; setTimeout(()=>{ const el = document.getElementById("vote-"+vid); if(el){ el.scrollIntoView({block:"center", behavior:"smooth"}); el.classList.add("flash"); setTimeout(()=>el.classList.remove("flash"), 1800); } }, 80); break; }
     case "new-contact": contactModal(); break;
     case "edit-contact": contactModal(S.contacts.find(c=>c.id===id)); break;
@@ -1858,7 +1881,7 @@ document.addEventListener("click", async ev => {
 document.addEventListener("keydown", ev => {
   if(ev.key==="Escape" && bellOpen){ toggleBell(false); $("#bellBtn").focus(); return; }
   if(ev.key==="Escape" && $("#modalRoot").innerHTML) closeModal();
-  if((ev.key==="Enter"||ev.key===" ") && ev.target.matches(".card[data-act], .row.clickable[data-act]")){ ev.preventDefault(); ev.target.click(); }
+  if((ev.key==="Enter"||ev.key===" ") && ev.target.matches(".card[data-act], .row.clickable[data-act], .tile[data-act]")){ ev.preventDefault(); ev.target.click(); }
 });
 document.addEventListener("input", ev => {
   if(ev.target.id === "cSearch"){ const pos = ev.target.selectionStart; cfilt.q = ev.target.value; render(); const el = $("#cSearch"); if(el){ el.focus(); el.setSelectionRange(pos,pos); } return; }
