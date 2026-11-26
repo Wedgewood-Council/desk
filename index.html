@@ -198,6 +198,12 @@ pre.draft{white-space:pre-wrap;font-family:var(--body);background:var(--bg);bord
 .ov-vote:first-child{border-top:none;padding-top:0}
 .ov-vote .ballot button:not(.link){min-width:0;padding:5px 12px;font-size:13px}
 .row.clickable{cursor:pointer;border-radius:6px}
+[data-open]{cursor:pointer}
+.row[data-open]:hover .title,.row[data-open]:focus-visible .title,.mp-task[data-open]:hover .title,.mp-task[data-open]:focus-visible .title{color:var(--accent);text-decoration:underline}
+tr[data-open]:hover td,tr[data-open]:focus-visible td{background:var(--hover,rgba(127,127,127,.08))}
+.ctr[data-open]{transition:border-color .15s,box-shadow .15s}
+.ctr[data-open]:hover,.ctr[data-open]:focus-visible{border-color:var(--accent);box-shadow:0 1px 6px rgba(0,0,0,.08)}
+[data-open]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .tile.clickable{cursor:pointer;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s}
 .tile.clickable:hover,.tile.clickable:focus-visible{border-color:var(--accent);box-shadow:0 1px 6px rgba(0,0,0,.08)}
 .you-tag{font-weight:400;font-size:13px;color:var(--muted)}
@@ -748,7 +754,7 @@ function viewOverview(){
     </section>
     </div>
     <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
-      ${orph.length ? `<section class="panel"><h3>Tasks without an owner (${orph.length})</h3><p class="sub" style="margin-top:-6px;margin-bottom:10px">Unassigned, or the owner has left council.</p><div class="list">${orph.map(t=>`<div class="row"><div><div class="title">${esc(t.title)}</div><div class="meta"><span>${esc(memberName(t.ownerId))}</span><span class="date">${fmt(t.due)}</span></div></div><div class="acts">${ro()?"":`<button class="small" data-act="edit-task" data-id="${t.id}">Assign</button>`}</div></div>`).join("")}</div></section>` : ""}
+      ${orph.length ? `<section class="panel"><h3>Tasks without an owner (${orph.length})</h3><p class="sub" style="margin-top:-6px;margin-bottom:10px">Unassigned, or the owner has left council.</p><div class="list">${orph.map(t=>`<div class="row"${openAttr("edit-task",t.id,t.title)}><div><div class="title">${esc(t.title)}</div><div class="meta"><span>${esc(memberName(t.ownerId))}</span><span class="date">${fmt(t.due)}</span></div></div><div class="acts">${ro()?"":`<button class="small" data-act="edit-task" data-id="${t.id}">Assign</button>`}</div></div>`).join("")}</div></section>` : ""}
       <section class="panel">
         <h3>Open Tasks/Votes by Member</h3><p class="sub" style="margin-top:-6px;margin-bottom:6px">Click a name to see their tasks.</p>
         ${counts.length ? `<div class="list">${counts.map(c=>{ const pv = votesAwaiting(c.m.id).length; return `<div class="row clickable" role="button" tabindex="0" data-act="member-tasks" data-id="${c.m.id}" aria-label="Show ${esc(c.m.name)}'s tasks"><div><div class="title">${esc(c.m.name)}${c.m.id===myMemberId()?' <span class="you-tag">(you)</span>':""}${pv?` <span class="pill soon">${pv} vote${pv===1?"":"s"} pending</span>`:""}</div><div class="load"><div class="bar" style="width:${Math.round(c.n/max*100)}%;max-width:140px"></div><span class="meta">${c.n} open${c.late?` · <span style="color:var(--late)">${c.late} late</span>`:""}</span></div></div></div>`; }).join("")}</div>` : `<div class="empty">Add council members to see who's carrying what.</div>`}
@@ -770,11 +776,18 @@ function ovVote(v){
     <div class="meta">${mine?`<span class="pill ok">You voted ${esc(mine.choice)}</span>`:`<span class="pill soon">Your vote needed</span>`}<span>Closes <span class="date">${voteCloses(v)}</span></span>${ds && ds.cls!=="late"?`<span class="pill ${ds.cls}">${ds.text.replace(/^Due/,"Closes")}</span>`:""}<span>${voteBallots(v).length} of ${activeMembers().length} voted</span></div></div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">${ballotButtons(v)}<button type="button" class="small" data-act="goto-vote" data-vid="${v.id}">View vote</button></div></div>`;
 }
+const openAttr = (act, id, label) => ro() ? "" : ` data-open="${act}" data-oid="${id}" tabindex="0" aria-label="Open ${esc(label||"")}"`;
+function openRecord(act, id){
+  if(act==="edit-task") taskModal(S.tasks.find(t=>t.id===id));
+  else if(act==="edit-contact") contactModal(S.contacts.find(c=>c.id===id));
+  else if(act==="edit-member") memberModal(S.members.find(m=>m.id===id));
+  else if(act==="edit-contractor") contractorModal(contractor(id));
+}
 let mpOpen = null;
 function mpTaskRow(t, showOwner){
   const ds = dueState(t.due, false);
-  return `<div class="mp-task"><div style="min-width:0"><div class="title">${isPmTask(t)?'<span class="pm-tag">PM</span> ':""}${esc(t.title)}${exPill(t)}</div><div class="meta">${showOwner?`<span>${esc(memberName(t.ownerId))}</span>`:""}${t.due?`<span class="date">Due ${fmt(t.due)}</span>`:"<span>No due date</span>"}${ds?`<span class="pill ${ds.cls}">${ds.text}</span>`:""}${t.category?`<span>${esc(t.category)}</span>`:""}${cmCount(t)}</div></div>
-    <div class="acts">${ro()?`<span class="pill">${statusLabel(t.status)}</span>`:`<select data-qs="${t.id}" aria-label="Status of ${esc(t.title)}">${opts(STATUSES, t.status)}</select><button type="button" class="small" data-act="edit-task" data-id="${t.id}">Open</button>`}</div></div>`;
+  return `<div class="mp-task"${openAttr("edit-task",t.id,t.title)}><div style="min-width:0"><div class="title">${isPmTask(t)?'<span class="pm-tag">PM</span> ':""}${esc(t.title)}${exPill(t)}</div><div class="meta">${showOwner?`<span>${esc(memberName(t.ownerId))}</span>`:""}${t.due?`<span class="date">Due ${fmt(t.due)}</span>`:"<span>No due date</span>"}${ds?`<span class="pill ${ds.cls}">${ds.text}</span>`:""}${t.category?`<span>${esc(t.category)}</span>`:""}${cmCount(t)}</div></div>
+    <div class="acts">${ro()?`<span class="pill">${statusLabel(t.status)}</span>`:`<select data-qs="${t.id}" aria-label="Status of ${esc(t.title)}">${opts(STATUSES, t.status)}</select>`}</div></div>`;
 }
 const byDue = (a,b) => (a.due||"9999").localeCompare(b.due||"9999");
 function tileBody(kind){
@@ -809,19 +822,19 @@ function memberTasksModal(mid){
 
 function taskRow(t){
   const ds = dueState(t.due, t.status==="done");
-  return `<div class="row ${isPmTask(t)?"pm-row":""}">
+  return `<div class="row ${isPmTask(t)?"pm-row":""}"${openAttr("edit-task",t.id,t.title)}>
     <div>
       <div class="title">${isPmTask(t)?'<span class="pm-tag">PM</span> ':""}${esc(t.title)}${exPill(t)}</div>
       <div class="meta"><span class="pill ${t.status==="done"?"ok":t.status==="waiting"?"acc":""}">${statusLabel(t.status)}</span><span>Task · ${esc(memberName(t.ownerId))}</span><span class="date">Due ${fmt(t.due)}</span>${ds?`<span class="pill ${ds.cls}">${ds.text}</span>`:""}${(t.files||[]).length?`<span class="pill" title="Documents">${clip}${t.files.length}</span>`:""}</div>
     </div>
-    <div class="acts">${ro()?"":`<button class="small" data-act="edit-task" data-id="${t.id}">Open</button>`}</div>
+    <div class="acts"></div>
   </div>`;
 }
 
 function contactRow(c, compact){
   const ds = dueState(c.followUpDate, c.followUpDone);
   const task = c.taskId ? S.tasks.find(t=>t.id===c.taskId) : null;
-  return `<div class="row">
+  return `<div class="row"${openAttr("edit-contact",c.id,c.subject)}>
     <div>
       <div class="title">${esc(c.subject)}${exPill(c)}</div>
       <div class="meta"><span class="method">${c.method==="phone"?"PHONE":"EMAIL"}</span><span class="date">${fmt(c.date)}</span><span>by ${esc(memberName(c.byId))}</span>${c.ref?`<span class="date">Ref ${esc(c.ref)}</span>`:""}
@@ -831,8 +844,7 @@ function contactRow(c, compact){
       </div>
     </div>
     <div class="acts">${ro()?"":`
-      ${fuOpen(c)?`<button class="small" data-act="draft" data-id="${c.id}">Chase</button><button class="small" data-act="answer" data-id="${c.id}">Got an answer</button>`:""}
-      <button class="small" data-act="edit-contact" data-id="${c.id}">Open</button>`}
+      ${fuOpen(c)?`<button class="small" data-act="draft" data-id="${c.id}">Chase</button><button class="small" data-act="answer" data-id="${c.id}">Got an answer</button>`:""}`}
     </div>
     ${!compact && c.summary ? `<div class="notes">${esc(c.summary)}</div>` : ""}
     ${!compact && c.followUpDone && c.outcome ? `<div class="notes"><b>Answer:</b> ${esc(c.outcome)}</div>` : ""}
@@ -892,10 +904,10 @@ function viewMembers(){
   const act = activeMembers(), former = S.members.filter(m=>m.active===false);
   const rowsHtml = list => list.map(m => {
     const open = S.tasks.filter(t=>t.ownerId===m.id && t.status!=="done").length;
-    return `<tr><td><b>${esc(m.name)}</b>${isOwnerMember(m)?' <span class="pill acc" title="Can always sign in and is the only one who can transfer ownership">Owner</span>':""}${exPill(m)}</td><td>${esc(roleName(m.role))}</td><td class="date">${esc(m.unit||"")}</td><td><span style="overflow-wrap:anywhere">${esc(m.email||"")}</span>${m.phone?`<br><span class="date">${esc(m.phone)}</span>`:""}</td><td class="date">${m.termEnds?fmt(m.termEnds):"—"}</td><td>${open}</td>
-      <td style="white-space:nowrap">${ro()?"":`<button class="small" data-act="edit-member" data-id="${m.id}">Edit</button>`}</td></tr>`;
+    return `<tr${openAttr("edit-member",m.id,m.name)}><td><b>${esc(m.name)}</b>${isOwnerMember(m)?' <span class="pill acc" title="Can always sign in and is the only one who can transfer ownership">Owner</span>':""}${exPill(m)}</td><td>${esc(roleName(m.role))}</td><td class="date">${esc(m.unit||"")}</td><td><span style="overflow-wrap:anywhere">${esc(m.email||"")}</span>${m.phone?`<br><span class="date">${esc(m.phone)}</span>`:""}</td><td class="date">${m.termEnds?fmt(m.termEnds):"—"}</td><td>${open}</td>
+</tr>`;
   }).join("");
-  const table = list => `<div class="tscroll"><table><thead><tr><th>Name</th><th>Role</th><th>Unit</th><th>Contact</th><th>Term ends</th><th>Open tasks</th><th></th></tr></thead><tbody>${rowsHtml(list)}</tbody></table></div>`;
+  const table = list => `<div class="tscroll"><table><thead><tr><th>Name</th><th>Role</th><th>Unit</th><th>Contact</th><th>Term ends</th><th>Open tasks</th></tr></thead><tbody>${rowsHtml(list)}</tbody></table></div>`;
   const own = ownerMember();
   const ownLine = iAmOwner() ? `You're the owner of this tracker. <button type="button" class="link" data-act="transfer">Transfer ownership</button>` : own ? `Owner: ${esc(own.name)}. Only they can transfer ownership.` : "";
   return `<div class="section-head"><div><h2>Council members</h2><p class="sub">${act.length} current member${act.length===1?"":"s"}. No limit on how many you add.${ownLine?`<br>${ownLine}`:""}</p></div>${ro()?"":`<button class="primary" data-act="new-member">Add member</button>`}</div>
@@ -1432,13 +1444,13 @@ function pmTaskRow(t){
   const ds = dueState(t.due, t.status==="done");
   const contacts = S.contacts.filter(c=>c.taskId===t.id);
   const lastC = contacts.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
-  return `<div class="row ${isPmTask(t)?"pm-row":""}">
+  return `<div class="row ${isPmTask(t)?"pm-row":""}"${openAttr("edit-task",t.id,t.title)}>
     <div>
       <div class="title">${isPmTask(t)?'<span class="pm-tag">PM</span> ':""}${esc(t.title)}${exPill(t)}</div>
       <div class="meta"><span class="pill ${t.status==="waiting"?"acc":""}">${statusLabel(t.status)}</span>${isPmTask(t)?"":`<span>Owner: ${esc(memberName(t.ownerId))}</span>`}<span class="date">Due ${fmt(t.due)}</span>${ds?`<span class="pill ${ds.cls}">${ds.text}</span>`:""}
         <span>${contacts.length ? `${contacts.length} contact${contacts.length===1?"":"s"} logged · last <span class="date">${fmt(lastC.date)}</span>` : "No contact logged yet"}</span></div>
     </div>
-    <div class="acts">${ro()?"":`<button class="small" data-act="contact-for-task" data-id="${t.id}">Log contact</button><button class="small" data-act="edit-task" data-id="${t.id}">Open</button>`}</div>
+    <div class="acts">${ro()?"":`<button class="small" data-act="contact-for-task" data-id="${t.id}">Log contact</button>`}</div>
   </div>`;
 }
 
@@ -1467,11 +1479,11 @@ function viewContractors(){
     const qs = c.quotes||[]; const pend = qs.filter(x=>x.status==="pending");
     const lastQ = qs.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
     const tasks = S.tasks.filter(t=>t.contractorId===c.id && t.status!=="done");
-    return `<article class="ctr ${c.status==="avoid"?"avoid":""}">
+    return `<article class="ctr ${c.status==="avoid"?"avoid":""}"${openAttr("edit-contractor",c.id,c.company)}>
       <div class="ctr-head"><div style="min-width:0"><h3>${esc(c.company)}${exPill(c)}</h3><div class="meta">${esc(c.trade||"")}${main?` · ${esc(main.name)}${main.role?` (${esc(main.role)})`:""}`:""}</div></div><span class="pill ${cStatusCls(c.status)}">${cStatusLabel(c.status)}</span></div>
       <div class="ctr-contact">${c.phone?`<div class="kv"><small>Phone</small>${telLink(c.phone)}</div>`:""}${c.email?`<div class="kv"><small>Email</small>${mailLink(c.email)}</div>`:""}${!c.phone && main && main.phone ? `<div class="kv"><small>Phone</small>${telLink(main.phone)}</div>`:""}</div>
       <div class="meta ctr-stats"><span>${qs.length} quote${qs.length===1?"":"s"}${pend.length?` · <b>${pend.length} pending</b>`:""}</span>${lastQ?`<span>Last quote <span class="date">${fmt(lastQ.date)}</span>${lastQ.amount!==""?` · ${money(lastQ.amount)}`:""}</span>`:""}${tasks.length?`<span>${tasks.length} open task${tasks.length===1?"":"s"}</span>`:""}${(c.files||[]).length?`<span>${clip}${c.files.length}</span>`:""}</div>
-      <div class="ctr-acts"><button class="small" data-act="edit-contractor" data-id="${c.id}">Open</button>${c.phone?`<button class="small" data-act="copy" data-text="${esc(c.phone)}">Copy phone</button>`:""}${c.email?`<button class="small" data-act="copy" data-text="${esc(c.email)}">Copy email</button>`:""}</div>
+      <div class="ctr-acts">${c.phone?`<button class="small" data-act="copy" data-text="${esc(c.phone)}">Copy phone</button>`:""}${c.email?`<button class="small" data-act="copy" data-text="${esc(c.email)}">Copy email</button>`:""}</div>
     </article>`;
   }).join("");
   return `<div class="section-head"><div><h2>Contractors</h2><p class="sub">Trades we've used or are getting quotes from, with their contacts, quotes and documents.</p></div>${ro()?"":`<button class="primary" data-act="new-contractor">Add contractor</button>`}</div>
@@ -1644,6 +1656,8 @@ document.addEventListener("click", async ev => {
   if(ev.target.matches("[data-scrim]")){ closeModal(); return; }
   if(ev.target.closest("#bellBtn")){ toggleBell(); return; }
   if(bellOpen && !ev.target.closest("#bellPanel")) toggleBell(false);
+  const op = ev.target.closest("[data-open]");
+  if(op && !ev.target.closest("button, a, select, input, textarea, label, summary, [data-act]") && !String(window.getSelection()||"").trim()){ openRecord(op.dataset.open, op.dataset.oid); return; }
   const b = ev.target.closest("[data-act]"); if(!b) return;
   const id = b.dataset.id, act = b.dataset.act;
   switch(act){
@@ -1900,6 +1914,7 @@ document.addEventListener("keydown", ev => {
   if(ev.key==="Escape" && bellOpen){ toggleBell(false); $("#bellBtn").focus(); return; }
   if(ev.key==="Escape" && $("#modalRoot").innerHTML) closeModal();
   if((ev.key==="Enter"||ev.key===" ") && ev.target.matches(".card[data-act], .row.clickable[data-act], .tile[data-act]")){ ev.preventDefault(); ev.target.click(); }
+  else if((ev.key==="Enter"||ev.key===" ") && ev.target.matches("[data-open]")){ ev.preventDefault(); openRecord(ev.target.dataset.open, ev.target.dataset.oid); }
 });
 document.addEventListener("input", ev => {
   if(ev.target.id === "cSearch"){ const pos = ev.target.selectionStart; cfilt.q = ev.target.value; render(); const el = $("#cSearch"); if(el){ el.focus(); el.setSelectionRange(pos,pos); } return; }
