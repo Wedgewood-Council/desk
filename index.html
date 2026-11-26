@@ -312,7 +312,7 @@ a.btn{text-decoration:none}
       <a href="#tasks" data-view="tasks">Tasks</a>
       <a href="#pm" data-view="pm">Property Manager Log</a>
       <a href="#votes" data-view="votes">Votes</a>
-      <a href="#contractors" data-view="contractors">Contractors</a>
+      <a href="#contractors" data-view="contractors">Contractors &amp; Quotes</a>
       <a href="#members" data-view="members">Members</a>
     </nav>
   </div>
@@ -1486,7 +1486,7 @@ function viewContractors(){
       <div class="ctr-acts">${c.phone?`<button class="small" data-act="copy" data-text="${esc(c.phone)}">Copy phone</button>`:""}${c.email?`<button class="small" data-act="copy" data-text="${esc(c.email)}">Copy email</button>`:""}</div>
     </article>`;
   }).join("");
-  return `<div class="section-head"><div><h2>Contractors</h2><p class="sub">Trades we've used or are getting quotes from, with their contacts, quotes and documents.</p></div>${ro()?"":`<button class="primary" data-act="new-contractor">Add contractor</button>`}</div>
+  return `<div class="section-head"><div><h2>Contractors &amp; Quotes</h2><p class="sub">Trades we've used or are getting quotes from, with their contacts, quotes and documents.</p></div>${ro()?"":`<button class="primary" data-act="new-contractor">Add contractor</button>`}</div>
   <div class="filters">
     <input id="cSearch" type="search" placeholder="Search name, contact, phone" value="${esc(cfilt.q)}" aria-label="Search contractors">
     <select id="cTradeF" aria-label="Trade"><option value="">All trades</option>${opts(TRADES.map(t=>[t,t]), cfilt.trade)}</select>
