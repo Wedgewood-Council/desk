@@ -488,8 +488,8 @@ function demoData(){
       {id:"ct3",company:"Evergreen Grounds",trade:"Landscaping",status:"preferred",phone:"604-555-0190",email:"office@evergreen.example",website:"",insuranceExpires:addDays(t,25),wsbc:true,notes:"Our landscaper since 2023. Reliable, responsive.",contacts:[{name:"Sam Whitford",role:"Owner",phone:"604-555-0191",email:""},{name:"Office",role:"Scheduling",phone:"604-555-0190",email:"office@evergreen.example"}],quotes:[{id:"q3",date:addDays(t,-200),amount:9600,description:"2026 annual grounds maintenance contract",status:"accepted",taskId:"",fileId:""}],files:[],createdAt:addDays(t,-400),example:true},
     ],
     votes:[
-      {id:"vo1",title:"Approve Coastal Gates quote of $4,200 for parkade gate motor replacement",details:"Three quotes received (see the parkade gate task). Coastal Gates is lowest and can start Dec 8. Paid from the contingency reserve fund.",kind:"motion",options:[],closesAtIso:new Date(addDays(t,3)+"T23:59:59").toISOString(),status:"open",createdBy:"m3",createdAt:hrs(22),taskId:"t1",example:true},
-      {id:"vo2",title:"Date for the 2027 AGM",details:"Amenity room is free on all three dates.",kind:"choice",options:["Tue Feb 23","Wed Feb 24","Thu Feb 25"],closesAtIso:new Date(addDays(t,-6)+"T23:59:59").toISOString(),status:"closed",closedAt:hrs(24*6),createdBy:"m1",createdAt:hrs(24*12),taskId:"",example:true},
+      {id:"vo1",title:"Approve Coastal Gates quote of $4,200 for parkade gate motor replacement",details:"Three quotes received (see the parkade gate task). Coastal Gates is lowest and can start Dec 8. Paid from the contingency reserve fund.",kind:"motion",options:[],status:"open",createdBy:"m3",createdAt:hrs(22),taskId:"t1",example:true},
+      {id:"vo2",title:"Date for the 2027 AGM",details:"Amenity room is free on all three dates.",kind:"choice",options:["Tue Feb 23","Wed Feb 24","Thu Feb 25"],status:"closed",closedAt:hrs(24*6),createdBy:"m1",createdAt:hrs(24*12),taskId:"",example:true},
     ],
     ballots:[
       {id:"vo1_m2",voteId:"vo1",memberId:"m2",choice:"For",at:hrs(20)},
@@ -652,7 +652,7 @@ async function boot(){
   });
 }
 function startDemo(){
-  Object.assign(S, demoData(), {mode:"demo", ownerEmail:"alex@example.com"}); S.loaded = {members:1,tasks:1,contacts:1,settings:1};
+  Object.assign(S, demoData(), {mode:"demo", ownerEmail:"alex@example.com"}); reads.votesSeen = Object.fromEntries(S.votes.filter(v=>v.status==="closed").map(v=>[v.id,true])); readsLoaded = true; S.loaded = {members:1,tasks:1,contacts:1,settings:1};
   $("#authScreen").hidden = true; $("#app").hidden = false;
   $("#whoami").textContent = "Preview"; $("#signOut").hidden = true;
   render();
@@ -667,7 +667,7 @@ function startApp(){
   unsubs.push(fdb.collection("ballots").onSnapshot(snap => { S.ballots = snap.docs.map(d=>({...d.data(), id:d.id})); render(); }, err => console.error(err)));
   unsubs.push(fdb.collection("comments").onSnapshot(snap => { S.comments = snap.docs.map(d=>({...d.data(), id:d.id})); render(); }, err => console.error(err)));
   unsubs.push(fdb.collection("activity").orderBy("at","desc").limit(150).onSnapshot(snap => { S.activity = snap.docs.map(d=>({...d.data(), id:d.id})); render(); }, err => console.error(err)));
-  unsubs.push(fdb.collection("notif").doc(readsDocId()).onSnapshot(d => { const x = d.exists ? d.data() : {}; reads = {read:x.read||{}, unread:x.unread||{}, allReadBefore:x.allReadBefore||""}; renderBell(); }, err => console.error(err)));
+  unsubs.push(fdb.collection("notif").doc(readsDocId()).onSnapshot(d => { const x = d.exists ? d.data() : {}; reads = {read:x.read||{}, unread:x.unread||{}, allReadBefore:x.allReadBefore||"", votesSeen:x.votesSeen||{}}; readsLoaded = true; renderBell(); maybeShowVoteSummary(); }, err => console.error(err)));
   for(const [coll, key] of [["members","members"],["tasks","tasks"],["contacts","contacts"],["settings","pm"]]){
     unsubs.push(fdb.collection(coll).onSnapshot(snap => {
       if(coll === "settings"){ const d = snap.docs.find(x=>x.id==="pm"); S.pm = d ? d.data() : {}; const o = snap.docs.find(x=>x.id==="ownership"); S.ownerEmail = o ? lc(o.data().ownerEmail) : ""; }
@@ -711,6 +711,7 @@ function render(){
   $("#view").innerHTML = html;
   if(mpOpen && $("#mpBody")) $("#mpBody").innerHTML = mpOpen();
   fitVoteDetails();
+  sweepVotes(); maybeShowVoteSummary();
   const f = $("#view [data-filter-root]"); if(f) restoreFilters();
   renderBell(); renderComments();
 }
@@ -732,7 +733,7 @@ function viewOverview(){
     ...lateFU.map(c=>({k:"fu",r:c,d:c.followUpDate})), ...lateT.map(t=>({k:"t",r:t,d:t.due})),
     ...soonFU.map(c=>({k:"fu",r:c,d:c.followUpDate})), ...soonT.map(t=>({k:"t",r:t,d:t.due})),
   ].sort((a,b)=>a.d.localeCompare(b.d));
-  const openVotes = S.votes.filter(v=>!voteClosed(v)).sort((a,b)=>(a.closesAtIso||"").localeCompare(b.closesAtIso||""));
+  const openVotes = S.votes.filter(v=>!voteClosed(v)).sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
   const attention = items.length ? items.map(i => i.k==="fu" ? contactRow(i.r,true) : taskRow(i.r)).join("") :
     `<div class="empty">Nothing overdue or due this week.</div>`;
   const act = activeMembers();
@@ -764,16 +765,16 @@ function viewOverview(){
 }
 
 const votesAwaiting = mid => S.votes.filter(v => !voteClosed(v) && !S.ballots.some(b => b.voteId===v.id && b.memberId===mid));
-const voteCloses = v => v.closesAtIso ? fmt(new Date(v.closesAtIso).toLocaleDateString("en-CA")) : "";
+const voteOpened = v => v.createdAt ? fmt(v.createdAt.slice(0,10)) : "";
 function ballotButtons(v){
   const mine = myBallot(v); const os = v.options && v.options.length ? v.options : VOTE_MOTION;
   if(ro() || !member(myMemberId())) return "";
   return `<div class="ballot" role="group" aria-label="Cast your vote">${os.map(o=>`<button type="button" class="small ${mine && mine.choice===o?"chosen":""}" data-act="cast" data-vid="${v.id}" data-choice="${esc(o)}" aria-pressed="${!!(mine && mine.choice===o)}">${esc(o)}</button>`).join("")}</div>`;
 }
 function ovVote(v){
-  const mine = myBallot(v); const ds = dueState(new Date(v.closesAtIso).toLocaleDateString("en-CA"), false);
+  const mine = myBallot(v);
   return `<div class="ov-vote"><div><div class="title"><b>${esc(v.title)}</b>${exPill(v)}</div>
-    <div class="meta">${mine?`<span class="pill ok">You voted ${esc(mine.choice)}</span>`:`<span class="pill soon">Your vote needed</span>`}<span>Closes <span class="date">${voteCloses(v)}</span></span>${ds && ds.cls!=="late"?`<span class="pill ${ds.cls}">${ds.text.replace(/^Due/,"Closes")}</span>`:""}<span>${voteBallots(v).length} of ${activeMembers().length} voted</span></div></div>
+    <div class="meta">${mine?`<span class="pill ok">You voted ${esc(mine.choice)}</span>`:`<span class="pill soon">Your vote needed</span>`}<span>Opened <span class="date">${voteOpened(v)}</span> by ${esc(memberName(v.createdBy))}</span><span>${voteBallots(v).length} of ${activeMembers().length} voted</span></div></div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">${ballotButtons(v)}<button type="button" class="small" data-act="goto-vote" data-vid="${v.id}">View vote</button></div></div>`;
 }
 const openAttr = (act, id, label) => ro() ? "" : ` data-open="${act}" data-oid="${id}" tabindex="0" aria-label="Open ${esc(label||"")}"`;
@@ -810,7 +811,7 @@ function memberPanelBody(mid){
   const me = mid === myMemberId(); const first = me ? "you" : esc(m.name.split(" ")[0]);
   const tasks = S.tasks.filter(t=>t.ownerId===mid && t.status!=="done").sort((a,b)=>(taskLate(b)-taskLate(a)) || (a.due||"9999").localeCompare(b.due||"9999"));
   const pv = votesAwaiting(mid);
-  const flag = pv.length ? `<div class="mp-flag"><h3>${pv.length} open vote${pv.length===1?"":"s"} waiting on ${first}</h3>${pv.map(v=>`<div style="padding:6px 0;display:flex;flex-direction:column;gap:6px"><div><b>${esc(v.title)}</b> <span class="meta">· closes ${voteCloses(v)}</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">${me?ballotButtons(v):`<span class="meta">${esc(m.name.split(" ")[0])} hasn't voted yet.</span>`}<button type="button" class="small" data-act="goto-vote" data-vid="${v.id}">View vote</button></div></div>`).join("")}</div>` : "";
+  const flag = pv.length ? `<div class="mp-flag"><h3>${pv.length} open vote${pv.length===1?"":"s"} waiting on ${first}</h3>${pv.map(v=>`<div style="padding:6px 0;display:flex;flex-direction:column;gap:6px"><div><b>${esc(v.title)}</b> <span class="meta">· opened ${voteOpened(v)}</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">${me?ballotButtons(v):`<span class="meta">${esc(m.name.split(" ")[0])} hasn't voted yet.</span>`}<button type="button" class="small" data-act="goto-vote" data-vid="${v.id}">View vote</button></div></div>`).join("")}</div>` : "";
   const rows = tasks.map(t=>mpTaskRow(t,false)).join("");
   return `${flag}<h3 style="margin:0 0 4px">${tasks.length} open task${tasks.length===1?"":"s"}</h3>${tasks.length ? `<div>${rows}</div>` : `<div class="empty">${me?"You have":`${esc(m.name.split(" ")[0])} has`} no open tasks.</div>`}`;
 }
@@ -1367,7 +1368,7 @@ function wireMentions(root){
 /* ---------- votes ---------- */
 const VOTE_MOTION = ["For","Against","Abstain"];
 const endOfDayIso = d => new Date(d + "T23:59:59").toISOString();
-const voteClosed = v => v.status === "closed" || (v.closesAtIso && nowIso() > v.closesAtIso);
+const voteClosed = v => v.status === "closed";
 const voteBallots = v => S.ballots.filter(b => b.voteId === v.id);
 const myBallot = v => S.ballots.find(b => b.voteId === v.id && b.memberId === myMemberId());
 const votesAwaitingMe = () => S.votes.filter(v => !voteClosed(v) && !myBallot(v) && member(myMemberId()));
@@ -1392,13 +1393,12 @@ function voteCard(v){
   const cast = voteBallots(v).length; const eligible = activeMembers().length;
   const notYet = activeMembers().filter(m => !voteBallots(v).some(b=>b.memberId===m.id));
   const max = Math.max(1, ...tally.map(x=>x.n));
-  const ds = closed ? null : dueState(v.closesAtIso ? v.closesAtIso.slice(0,10) && new Date(v.closesAtIso).toLocaleDateString("en-CA") : "", false);
   const task = v.taskId ? S.tasks.find(t=>t.id===v.taskId) : null;
   const out = closed ? voteOutcome(v) : null;
   return `<article class="vote ${closed?"closed":""}" id="vote-${v.id}">
     <div class="vote-head">
       <div style="min-width:0"><h3>${esc(v.title)}${exPill(v)}</h3>
-        <div class="meta">${v.kind==="choice"?"Choose one":"Motion"} · opened by ${esc(memberName(v.createdBy))} ${v.createdAt?ago(v.createdAt):""} · ${closed ? `closed` : `closes <span class="date">${fmt(new Date(v.closesAtIso).toLocaleDateString("en-CA"))}</span>`}${ds?` <span class="pill ${ds.cls}">${ds.text.replace("Due","Closes")}</span>`:""}${task?` · task: ${esc(task.title)}`:""}</div>
+        <div class="meta">${v.kind==="choice"?"Choose one":"Motion"} · opened by ${esc(memberName(v.createdBy))} ${v.createdAt?ago(v.createdAt):""} · ${closed ? `closed${v.closedAt?` <span class="date">${fmt(v.closedAt.slice(0,10))}</span>`:""}${v.closedHow==="all-voted"?" (everyone voted)":v.closedBy?` by ${esc(memberName(v.closedBy))}`:""}` : `open until everyone votes or a member closes it`}${task?` · task: ${esc(task.title)}`:""}</div>
       </div>
       ${out ? `<span class="pill ${out.cls} big">${out.text}</span>` : mine ? `<span class="pill ok">You voted: ${esc(mine.choice)}</span>` : `<span class="pill soon">Your vote needed</span>`}
     </div>
@@ -1406,16 +1406,51 @@ function voteCard(v){
     ${!closed ? `<div class="ballot" role="group" aria-label="Cast your vote">${tally.map(x=>`<button type="button" class="${mine && mine.choice===x.o?"chosen":""}" data-act="cast" data-vid="${v.id}" data-choice="${esc(x.o)}" aria-pressed="${!!(mine && mine.choice===x.o)}">${esc(x.o)}</button>`).join("")}${mine?`<button type="button" class="link" data-act="uncast" data-vid="${v.id}">Withdraw my vote</button>`:""}</div>` : ""}
     <div class="tally">${tally.map(x=>`<div class="trow"><span class="tl">${esc(x.o)}</span><span class="tbar"><span style="width:${Math.round(x.n/max*100)}%"></span></span><span class="tn">${x.n}</span><span class="tw">${x.who.map(id=>esc(id===myMemberId()?"You":memberName(id).split(" ")[0])).join(", ")}</span></div>`).join("")}</div>
     <div class="vote-foot"><span class="meta">${cast} of ${eligible} member${eligible===1?"":"s"} voted${!closed && notYet.length ? ` · waiting on ${notYet.map(m=>esc(m.id===myMemberId()?"you":m.name.split(" ")[0])).join(", ")}` : ""}</span>
-      <span class="vote-acts">${canManageVote(v) ? `${!closed?`<button type="button" class="small" data-act="close-vote" data-vid="${v.id}">Close voting now</button>`:""}<button type="button" class="small" data-act="ask-rmvote">Delete</button><span data-confirm hidden><button type="button" class="small danger" data-act="rmvote" data-vid="${v.id}">Delete vote</button> <button type="button" class="small" data-act="cancel-delete">Keep</button></span>` : ""}
+      <span class="vote-acts">${!closed && !ro() && member(myMemberId()) ? `<button type="button" class="small" data-act="close-vote" data-vid="${v.id}">Close voting now</button>` : ""}${canManageVote(v) ? `<button type="button" class="small" data-act="ask-rmvote">Delete</button><span data-confirm hidden><button type="button" class="small danger" data-act="rmvote" data-vid="${v.id}">Delete vote</button> <button type="button" class="small" data-act="cancel-delete">Keep</button></span>` : ""}
       ${closed ? `<button type="button" class="small" data-act="vote-task" data-vid="${v.id}">Create follow-up task</button>` : ""}</span></div>
   </article>`;
 }
 let showDoneVotes = false;
+const closingVotes = new Set();
+async function closeVote(v, how){
+  if(closingVotes.has(v.id) || voteClosed(v)) return; closingVotes.add(v.id);
+  const ok = await store.set("votes", v.id, {...clean(v), status:"closed", closedAt:nowIso(), closedBy:myMemberId(), closedHow:how});
+  if(ok){
+    const out = voteOutcome(v);
+    if(how === "manual") toast(`Voting closed: ${out.text}`);
+    logActivity({type:"vote", text: how==="all-voted" ? `cast the last vote on "${v.title}". Everyone has voted: ${out.text}` : `closed the vote "${v.title}": ${out.text}`, voteId:v.id, forIds: activeMembers().map(m=>m.id)});
+  } else closingVotes.delete(v.id);
+}
+// If everyone has voted but the vote wasn't closed (e.g. the last voter's page closed), the creator or owner closes it.
+function sweepVotes(){
+  if(ro() || S.mode==="loading") return; const act = activeMembers(); if(!act.length) return;
+  for(const v of S.votes) if(!voteClosed(v) && (v.createdBy===myMemberId() || iAmOwner()) && act.every(m=>voteBallots(v).some(b=>b.memberId===m.id))) closeVote(v, "all-voted");
+}
+// Result summary shown once to each member after a vote closes.
+let readsLoaded = false;
+function markVoteSeen(vid){ reads.votesSeen = {...(reads.votesSeen||{}), [vid]: true}; saveReads(); }
+function voteSummaryHtml(v){
+  const out = voteOutcome(v); const tally = voteTally(v); const max = Math.max(1, ...tally.map(x=>x.n));
+  const notVoted = activeMembers().filter(m => !voteBallots(v).some(b=>b.memberId===m.id));
+  return `<h2>Vote completed</h2>
+  <p style="margin:-6px 0 12px;font-weight:600">${esc(v.title)}</p>
+  <div style="margin-bottom:12px"><span class="pill ${out.cls} big">${out.text}</span></div>
+  <p class="sub" style="margin:0 0 12px">${v.closedHow==="all-voted"?"Closed automatically when every member had voted":`Closed by ${esc(memberName(v.closedBy))}`}${v.closedAt?` on ${fmt(v.closedAt.slice(0,10))}`:""}. Opened by ${esc(memberName(v.createdBy))}.</p>
+  <div class="tally">${tally.map(x=>`<div class="trow"><span class="tl">${esc(x.o)}</span><span class="tbar"><span style="width:${Math.round(x.n/max*100)}%"></span></span><span class="tn">${x.n}</span><span class="tw">${x.who.map(id=>esc(id===myMemberId()?"You":memberName(id).split(" ")[0])).join(", ")}</span></div>`).join("")}</div>
+  ${notVoted.length ? `<p class="sub" style="margin:10px 0 0">Didn't vote: ${notVoted.map(m=>esc(m.name)).join(", ")}</p>` : ""}
+  <div class="modal-acts"><div><button type="button" data-act="vs-view" data-vid="${v.id}">View in Completed Votes</button></div><div>${ro()?"":`<button type="button" data-act="vs-task" data-vid="${v.id}">Create follow-up task</button>`}<button type="button" class="primary" data-act="vs-done" data-vid="${v.id}">Got it</button></div></div>`;
+}
+function maybeShowVoteSummary(){
+  if(!readsLoaded || S.mode==="loading" || $("#modalRoot").innerHTML || !member(myMemberId())) return;
+  const cutoff = new Date(Date.now() - 30*864e5).toISOString(); const seen = reads.votesSeen || {};
+  const v = S.votes.filter(x => voteClosed(x) && x.closedAt && !isNaN(Date.parse(x.closedAt)) && x.closedAt >= cutoff && !seen[x.id]).sort((a,b)=>a.closedAt.localeCompare(b.closedAt))[0];
+  if(v) openModal(voteSummaryHtml(v));
+}
 const expandedVotes = new Set();
 function fitVoteDetails(){ document.querySelectorAll(".vd-wrap").forEach(w => { const d = w.querySelector(".vote-details"), b = w.querySelector(".vd-more"); if(!d || !b) return; const was = d.classList.contains("clamped"); d.classList.add("clamped"); const over = d.scrollHeight > d.clientHeight + 2; if(!was) d.classList.remove("clamped"); b.hidden = !over; }); }
 function viewVotes(){
-  const open = S.votes.filter(v=>!voteClosed(v)).sort((a,b)=>(a.closesAtIso||"").localeCompare(b.closesAtIso||""));
-  const closed = S.votes.filter(voteClosed).sort((a,b)=>(b.closedAt||b.closesAtIso||"").localeCompare(a.closedAt||a.closesAtIso||""));
+  const open = S.votes.filter(v=>!voteClosed(v)).sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
+  const closed = S.votes.filter(voteClosed).sort((a,b)=>(b.closedAt||b.createdAt||"").localeCompare(a.closedAt||a.createdAt||""));
   return `<div class="section-head"><div><h2>Open Votes</h2><p class="sub">Council decisions between meetings. Everyone sees who voted and how, so results can go straight into the minutes.</p></div>${ro()?"":`<button class="primary" data-act="new-vote">New vote</button>`}</div>
   ${open.length ? `<div class="votes">${open.map(voteCard).join("")}</div>` : `<div class="empty">No open votes. Use <b>New vote</b> to put a motion to council, like "Approve the $4,200 gate motor quote".</div>`}
   <details class="done-votes" id="doneVotes" ${showDoneVotes?"open":""}><summary><h3>Completed Votes <span class="count">(${closed.length})</span></h3><span class="sub">${showDoneVotes?"Hide":"Show"}</span></summary>${closed.length ? `<div class="votes">${closed.map(voteCard).join("")}</div>` : `<div class="empty">No completed votes yet. When a vote closes, it's kept here with its result and who voted.</div>`}</details>`;
@@ -1425,7 +1460,7 @@ function voteModal(){
   <form class="form" id="voteForm">
     <label class="full">Motion or question<input id="vTitle" name="title" required placeholder="e.g. Approve Coastal Gates quote of $4,200 for gate motor replacement"></label>
     <label>Type<select id="vKind" name="kind">${opts([["motion","Motion (For / Against / Abstain)"],["choice","Choose between options"]],"motion")}</select></label>
-    <label>Voting closes<input id="vClose" type="date" name="closes" required value="${addDays(today(),7)}" min="${today()}"></label>
+    <p class="sub full" style="margin:0">Voting stays open until every member has voted, or a member clicks Close voting now.</p>
     <label class="full" id="vOptsWrap" hidden>Options, one per line<textarea id="vOpts" name="options" placeholder="Coastal Gates – $4,200&#10;Metro Door – $4,950&#10;Abstain"></textarea></label>
     <label class="full">Details<span class="mention-wrap"><textarea id="vDetails" name="details" data-mentions placeholder="Background, quotes, links. Type @ to tag someone."></textarea><span class="mention-pop" role="listbox" hidden></span></span></label>
     <label class="full">Related task (optional)<select id="vTask" name="taskId"><option value="">None</option>${opts(S.tasks.filter(t=>t.status!=="done").map(t=>[t.id,t.title]),"")}</select></label>
@@ -1611,7 +1646,7 @@ function buildNotifications(){
     out.push({voteId:a.voteId, id:"a:"+a.id, at:a.at, own: a.byId===mine, forMe, mentioned, kind:a.type, text:`<b>${esc(nameOf(a.byId))}</b> ${esc(tagged && a.textYou ? a.textYou : a.text)}`, taskId:a.taskId, contactId:a.contactId});
   }
   // reminders the app works out from dates
-  for(const v of votesAwaitingMe()) out.push({id:`vote:${v.id}`, at:v.createdAt||nowIso(), forMe:true, kind:"due", voteId:v.id, text:`Your vote is needed: <b>${esc(v.title)}</b> (closes ${fmt(new Date(v.closesAtIso).toLocaleDateString("en-CA"))})`});
+  for(const v of votesAwaitingMe()) out.push({id:`vote:${v.id}`, at:v.createdAt||nowIso(), forMe:true, kind:"due", voteId:v.id, text:`Your vote is needed: <b>${esc(v.title)}</b>`});
   for(const c of S.contacts.filter(fuLate)) out.push({id:`fu:${c.id}:${c.followUpDate}`, at:c.followUpDate+"T08:00:00", forMe: c.byId===mine, kind:"overdue", text:`Follow-up overdue: <b>${esc(c.subject)}</b> (was due ${fmt(c.followUpDate)})`, contactId:c.id});
   for(const t of S.tasks.filter(t=>t.ownerId===mine && t.status!=="done" && t.due && daysBetween(today(), t.due) <= 2))
     out.push({id:`due:${t.id}:${t.due}`, at:(t.due < today() ? t.due : today())+"T08:00:00", forMe:true, kind:"due", text:`Your task <b>${esc(t.title)}</b> ${taskLate(t) ? `was due ${fmt(t.due)}` : t.due===today() ? "is due today" : `is due ${fmt(t.due)}`}`, taskId:t.id});
@@ -1751,12 +1786,12 @@ document.addEventListener("click", async ev => {
       const options = d.kind === "choice" ? [...new Set(d.options.split("\n").map(x=>x.trim()).filter(Boolean))] : [];
       if(d.kind === "choice" && options.length < 2){ toast("Add at least two options, one per line."); return; }
       const vid = uid();
-      const doc = {title:d.title.trim(), details:d.details.trim(), kind:d.kind, options, closesAtIso:endOfDayIso(d.closes), status:"open", createdBy:myMemberId(), createdAt:nowIso(), taskId:d.taskId||""};
+      const doc = {title:d.title.trim(), details:d.details.trim(), kind:d.kind, options, status:"open", createdBy:myMemberId(), createdAt:nowIso(), taskId:d.taskId||""};
       if(await store.set("votes", vid, doc)){
         closeModal(); toast("Vote opened"); location.hash = "votes";
         const others = activeMembers().map(m=>m.id).filter(x=>x!==myMemberId());
         const tagged = extractMentions(doc.details).filter(x=>x!==myMemberId());
-        logActivity({type:"vote", text:`opened a vote: "${doc.title}" (closes ${fmt(d.closes)})`, voteId:vid, forIds:others, mentions: tagged.length ? tagged : undefined, textYou: tagged.length ? `tagged you in a vote: "${doc.title}"` : undefined});
+        logActivity({type:"vote", text:`opened a vote: "${doc.title}"`, voteId:vid, forIds:others, mentions: tagged.length ? tagged : undefined, textYou: tagged.length ? `tagged you in a vote: "${doc.title}"` : undefined});
       }
       break;
     }
@@ -1768,24 +1803,21 @@ document.addEventListener("click", async ev => {
       if(await store.set("ballots", `${v.id}_${myMemberId()}`, {voteId:v.id, memberId:myMemberId(), choice:b.dataset.choice, at:nowIso()})){
         toast(prev ? `Vote changed to ${b.dataset.choice}` : `Voted ${b.dataset.choice}`);
         const all = voteBallots(v).length; const n = activeMembers().length;
-        if(!prev && all >= n) logActivity({type:"vote", text:`cast the last vote on "${v.title}". Everyone has voted.`, voteId:v.id, forIds:[v.createdBy]});
+        const voters = new Set(voteBallots(v).map(x=>x.memberId)); voters.add(myMemberId());
+        if(activeMembers().every(m=>voters.has(m.id))) await closeVote(v, "all-voted");
       }
       break;
     }
     case "uncast": { const v = S.votes.find(x=>x.id===b.dataset.vid); if(v && !voteClosed(v) && await store.del("ballots", `${v.id}_${myMemberId()}`)) toast("Vote withdrawn"); break; }
-    case "close-vote": {
-      const v = S.votes.find(x=>x.id===b.dataset.vid); if(!v) break;
-      if(await store.set("votes", v.id, {...clean(v), status:"closed", closedAt:nowIso()})){
-        const out = voteOutcome(v); toast(`Voting closed: ${out.text}`);
-        logActivity({type:"vote", text:`closed the vote "${v.title}": ${out.text}`, voteId:v.id, forIds: activeMembers().map(m=>m.id)});
-      }
-      break;
-    }
+    case "close-vote": { const v = S.votes.find(x=>x.id===b.dataset.vid); if(v) await closeVote(v, "manual"); break; }
+    case "vs-done": markVoteSeen(b.dataset.vid); closeModal(); break;
+    case "vs-task": { markVoteSeen(b.dataset.vid); closeModal(); const v = S.votes.find(x=>x.id===b.dataset.vid); const out = voteOutcome(v); taskModal(null, {title: v.kind==="choice" ? `Follow up: ${out.text.replace(/ \(.*\)$/,"")}` : `Follow up on vote: ${v.title}`, notes:`Council vote "${v.title}" closed ${fmt((v.closedAt||today()).slice(0,10))}: ${out.text}.`}); break; }
+    case "vs-view": { const vid = b.dataset.vid; markVoteSeen(vid); closeModal(); showDoneVotes = true; if(location.hash !== "#votes") location.hash = "#votes"; else render(); setTimeout(()=>{ const el = document.getElementById("vote-"+vid); if(el){ el.scrollIntoView({block:"center", behavior:"smooth"}); el.classList.add("flash"); setTimeout(()=>el.classList.remove("flash"), 1800); } }, 120); break; }
     case "ask-rmvote": b.hidden = true; b.nextElementSibling.hidden = false; break;
     case "rmvote": if(await store.del("votes", b.dataset.vid)) toast("Vote deleted"); break;
     case "vote-task": {
       const v = S.votes.find(x=>x.id===b.dataset.vid); const out = voteOutcome(v);
-      taskModal(null, {title: v.kind==="choice" ? `Follow up: ${out.text.replace(/ \(.*\)$/,"")}` : `Follow up on vote: ${v.title}`, notes:`Council vote "${v.title}" closed ${fmt((v.closedAt||v.closesAtIso).slice(0,10))}: ${out.text}.`});
+      taskModal(null, {title: v.kind==="choice" ? `Follow up: ${out.text.replace(/ \(.*\)$/,"")}` : `Follow up on vote: ${v.title}`, notes:`Council vote "${v.title}" closed ${fmt((v.closedAt||v.createdAt||today()).slice(0,10))}: ${out.text}.`});
       break;
     }
     case "do-transfer": {
@@ -1817,7 +1849,7 @@ document.addEventListener("click", async ev => {
     case "ask-rmcomment": b.hidden = true; b.nextElementSibling.hidden = false; break;
     case "rmcomment": if(await store.del("comments", b.dataset.cid)){ renderComments(); toast("Comment deleted"); } break;
     case "notif-filter": bellFilter = b.dataset.f; renderBell(); break;
-    case "notif-all-read": { const latest = buildNotifications().reduce((m,n)=> n.at > m ? n.at : m, nowIso()); reads = {read:{}, unread:{}, allReadBefore: latest}; saveReads(); break; }
+    case "notif-all-read": { const latest = buildNotifications().reduce((m,n)=> n.at > m ? n.at : m, nowIso()); reads = {read:{}, unread:{}, allReadBefore: latest, votesSeen: reads.votesSeen||{}}; saveReads(); break; }
     case "notif-toggle": { const n = notifIndex[b.dataset.nid]; if(n) markRead(n.id, !isRead(n)); break; }
     case "notif-open": {
       const n = notifIndex[b.dataset.nid]; if(!n) break;
